@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>Рейтинг сотрудников — TV</title>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <style>
+:root {
+  --bg: #0b1220;
+  --panel: #121c2e;
+  --line: rgba(148, 175, 214, 0.16);
+  --text: #eef3ff;
+  --muted: #93a4c3;
+  --accent: #ff6a3d;
+  --good: #3dd68c;
+  --warn: #ff5d6c;
+  --rank-1: #ffd166;
+  --rank-2: #c9d4e8;
+  --rank-3: #d4a574;
+  --shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+  --font: "Segoe UI", Arial, Helvetica, sans-serif;
+  --mono: Consolas, "Courier New", monospace;
+  --safe-x: 24px;
+  --safe-y: 14px;
+  --topbar-h: 86px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  font-family: var(--font);
+  color: var(--text);
+  background: #000;
+}
+
+body {
+  overflow: hidden;
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  cursor: none;
+  user-select: none;
+}
+
+body.show-cursor,
+body.editing {
+  cursor: auto;
+  user-select: auto;
+}
+
+.ambient {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(900px 500px at 10% -8%, rgba(255, 106, 61, 0.16), transparent 55%),
+    radial-gradient(700px 420px at 92% 0%, rgba(61, 214, 140, 0.1), transparent 50%),
+    linear-gradient(180deg, #0d1526 0%, #0b1220 55%, #09101c 100%);
+  z-index: -1;
+}
+
+.tv-fullscreen-btn {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 30;
+  border: 0;
+  border-radius: 12px;
+  padding: 12px 16px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-size: 18px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+}
+
+body.is-fullscreen .tv-fullscreen-btn {
+  display: none;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  height: var(--topbar-h);
+  padding: var(--safe-y) var(--safe-x);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+.brand-logo {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: #fff;
+  padding: 4px;
+}
+
+.brand-label {
+  margin: 0;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.topbar h1 {
+  margin: 2px 0 0;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 48vw;
+}
+
+.top-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.admin-controls { display: none; gap: 8px; }
+body.show-admin .admin-controls { display: inline-flex; }
+
+.btn {
+  appearance: none;
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn.ghost {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--line);
+  color: var(--text);
+}
+
+.board {
+  padding: 0 var(--safe-x) 12px;
+  height: calc(100% - var(--topbar-h));
+}
+
+.panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 18px 10px;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+
+.panel-head h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.panel-head p {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.table-wrap {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  min-height: 0;
+}
+
+.rating-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.rating-table th:nth-child(1),
+.rating-table td:nth-child(1) { width: 9%; }
+.rating-table th:nth-child(2),
+.rating-table td:nth-child(2) { width: 34%; }
+.rating-table th:nth-child(3),
+.rating-table td:nth-child(3) { width: 14%; }
+.rating-table th:nth-child(4),
+.rating-table td:nth-child(4) { width: 18%; }
+.rating-table th:nth-child(5),
+.rating-table td:nth-child(5) { width: 25%; }
+
+.rating-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  text-align: left;
+  padding: 12px 14px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: #0c1422;
+  border-bottom: 1px solid var(--line);
+}
+
+.rating-table tbody tr {
+  border-bottom: 1px solid rgba(148, 175, 214, 0.08);
+}
+
+.rating-table tbody tr:nth-child(odd) {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.rating-table td {
+  padding: 12px 14px;
+  vertical-align: middle;
+}
+
+.place {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 24px;
+}
+
+.place.top-1 { color: var(--rank-1); }
+.place.top-2 { color: var(--rank-2); }
+.place.top-3 { color: var(--rank-3); }
+
+.person {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 15px;
+  color: #fff;
+  background: linear-gradient(145deg, #2f6fed, #1f9d6a);
+  flex-shrink: 0;
+}
+
+.person-name {
+  font-size: 21px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.metric {
+  font-family: var(--mono);
+  font-size: 21px;
+  font-weight: 700;
+}
+
+.metric.zero { color: var(--warn); }
+
+.plan {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bar {
+  flex: 1;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.bar > span {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #ff6a3d, #ffd166);
+  transition: width 0.8s ease;
+}
+
+.plan-value {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 20px;
+  min-width: 3.2em;
+}
+
+.plan-value.low { color: var(--warn); }
+.plan-value.ok { color: var(--good); }
+
+.tv-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  margin: 0;
+  color: rgba(147, 164, 195, 0.7);
+  font-size: 13px;
+  opacity: 1;
+  transition: opacity 1s ease;
+  pointer-events: none;
+  text-align: center;
+  max-width: 90vw;
+}
+
+.tv-hint.hide { opacity: 0; }
+
+.editor {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 8, 16, 0.78);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  z-index: 40;
+}
+
+.editor[hidden] { display: none !important; }
+
+.editor-card {
+  width: min(980px, 96vw);
+  max-height: 88vh;
+  overflow: auto;
+  background: #121c2f;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 22px;
+  box-shadow: var(--shadow);
+  cursor: auto;
+  user-select: auto;
+}
+
+.editor-head,
+.editor-people-head,
+.editor-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.editor-head h2,
+.editor-people-head h3 { margin: 0; }
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 0 22px;
+}
+
+.fields label.full-width { grid-column: 1 / -1; }
+
+label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+input, textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  padding: 11px 12px;
+  font: inherit;
+}
+
+.people-list {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0 18px;
+}
+
+.person-row {
+  display: grid;
+  grid-template-columns: 1.3fr 0.8fr 1fr 1fr auto;
+  gap: 8px;
+  align-items: end;
+  padding: 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(148, 175, 214, 0.1);
+}
+
+.person-row .remove { height: 42px; }
+
+.hint {
+  margin: 14px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.file-btn { display: inline-flex; align-items: center; }
+
+@media (max-width: 900px) {
+  body { overflow: auto; cursor: auto; position: static; }
+  .board { height: auto; min-height: 70vh; }
+  .fields,
+  .person-row { grid-template-columns: 1fr; }
+  .tv-fullscreen-btn { font-size: 18px; }
+}
+
+@media (max-height: 700px) {
+  :root {
+    --topbar-h: 74px;
+    --safe-x: 16px;
+    --safe-y: 10px;
+  }
+
+  .topbar h1 { font-size: 24px; }
+  .brand-logo { width: 44px; height: 44px; }
+  .panel-head { padding: 10px 14px 8px; }
+  .panel-head h2 { font-size: 18px; }
+  .rating-table thead th { padding: 10px 12px; font-size: 11px; }
+  .rating-table td { padding: 10px 12px; }
+  .place,
+  .person-name,
+  .metric { font-size: 18px; }
+  .avatar { width: 36px; height: 36px; font-size: 13px; }
+  .plan-value { font-size: 16px; }
+  .tv-hint { display: none; }
+}
+
+</style>
+</head>
+<body class="tv-mode">
+  <div class="ambient" aria-hidden="true"></div>
+  <button type="button" class="tv-fullscreen-btn" id="bigFullscreenBtn">На весь экран</button>
+
+  <header class="topbar">
+    <div class="brand" id="brandHotspot" title="Удержите 2 сек для правки">
+      <img class="brand-logo" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOEAAADhCAMAAAAJbSJIAAABOFBMVEX/////3IAmN1H+//0pOFf53X373H//3X7+3Hj657f84JL///3++Oj+2XI0S2ocMlAsPFYzRGIqNk0AFjllb34tQF7+2H8xQWL56qr89OD/2Xg5S2/9//n33HL945v+78m/xswAEjkUJUcmOU06RWMuRGtSZn355pLk5+gxSGQoP12NmadoeIYGIkJlcH0aO10RMVUAKUkOIkqxs7sAIj1ha34nPF4iOmITKU/8/PL66bH23Wv857Hz7a3499q4p06hlmwAAD2EeGQAKUAAFUNmXV/+2IzjzYQ8QkTNuoO0pXOVhWtwa2sNJVJIU1w1PUnFsprp5cjr2n2un35oZl0jNmnSx32almafm4BVXIGPhV1xb1lPVUg7QFe8s3/g03pNTV84SluRjHwTMW0AADBFZWtfbHBCVHGgQflHAAAHX0lEQVR4nO2dC3vSVhiAE3I7NBJIhUQKsV0ptkRLaS2Xts45nbBWp5ta5y46dW7+/3+wXLichEDSrknOSb/38UEgyMn7fOd8J+dCZBgAAAAAAAAAAAAAAAAAAAAAAAAAAADg+iLXGYZLBaZeT8SQO8of59PhOJ+M4pGI0oFlUSKCXF0QpFRg0UkyhpwgsqmgIQMMwRAMwRAMwZBEQ00S2Zi7+ZQNbT0xToaslK4h0jRUiJMTSUvXUCysVG/Eyu1CyrUUrcRc3G2UbUMZDOMg6Vqaci4Fw/8PGMYAGF4xYBgDYHjFEGdY52SMOoNPw9cZ662wtQnOVxxxht4z5LBX8pGlH2H5hfGuTRBnePTgGCP/LXa+R9WH1VAePrzh/ULSDLlqYQ3DOqVZFG8V0FooUuGBtzjcUCDAsF6dDQUsRHyx6FgT2FAkabEhS6AhK2DHohmivLe47BlKCww1hDTju/j1mNQMEasZj76PX4+J2xAtMhSR8PjJD/HrMbHHkA0y1JBV0NNB7pv49ZjYDbUgQzQ0Rj8W+dWb8esx6RhqJ6eNYi6XVUNJ0oyzg+Jqg1/NQi0V19bx77NnE9c04dlBzoJvZNRQFJ7/1OCzbDh60XEEKTAsaOGwhXVvabdHLzu5MaRnmurx8a1wHlS9xf38ZBxBK4aEG3L2+D/KCNg7yu+u5saCxBteknJxUkfJb4eXAwxjIEXD7LdDMLwiwBAMLwhmSPxV2+W4Xr0FGF4RYAiGF4QmQ47zr+96cFeN596mydA+vIRwQ+L7w6DzD4ema5rq+hLyv9wfs+MtjqYYrhc0NhCECienLweDwf7+7u6XDW9xXYpiuF4I/p2GZGjCWbHB886M0+aGt7guRTHMF8Sgn1NIrCa828zx4YYUxFBi55DYISs+HpRKJddwdXfDWxxd7TDA0PrIq6f90tQwt8SQyhhKGhq9z5XMrBpar43TRl+vYDH0t0O6a6lWEF4XexWdj2ZIYQzRyrNOr1KKakhbDCUkvnrTr9iUIsaQ9Ctvn6GAXr04bzUzbCi+LZX0lu43XJZLSTfMF9D0h5OSsXLWMG2/nq5HNiS+HWqaMEESf+2YvYrZM00zci0lPtMcb69sT3n3W7vcLndtsmO4iK1eJSPtMBDZZ7jsyptiQz7rMeSz0lsEYhtmpj8MxB/DjLbDrPT4gfhzafb6w7lcmk3DiDEkfo9wIHO9Bc2jp0CuX2+RTUM304yTCc0zwoHMMs3Y4lobUtzjR50vpbwd0phppAi3VKXbUBAFth6ydj/rLSjMNMJQEn4P+7aLGBKXaUS08sdNeekemgBDelZmEBJHf3Y2w77NNixROT5ErDF6f97IsCFrfLBP7UoNCco0oiAYrwd204pkSGNvgcRnxV6WDZ2lz9KlDImfa+OqBhLZvz72nVVBr6G9c0/2w9WZT5H7Q0IMh8bpeU9VK7zPcOHOROoMhQ/nrZZamTNk7pfvWbQ9lNvlcqlClyH63G/pTTWglt7tNxVd0R16GNFXuUmYa2NuvOk1t1RdDzJs1hQX1cYWdXZi6FHnaUjoD2Vm52+lpjrnPldLFxrStI4vyzt7LVXRl8dQ1S9gSNr+Umanryh6qKF+KUMSYugahtXSpYak76CV/7ch6TGsz2rpskzjNdQj7lQgoh1ihvpiQ18M9ahX3iQYYrV0WX9IkaEUlGnc3mJubLGwHRK9RzjQUL2oIclrwJKw7T3qGKohhhNsP9O3+/Jgw/uFaddSVvDHcM86b9PCOuFisXjIzMZMdzu9vb29fr/f6XSKU/bH7B4eWn8OD/2/Ckp7bCFII3zYZ121de85lMtle3BUxgx3osF5x5FpG0pn/3iO1f3jXOw1NzfA98MEjJNTNRSk7Ufnd2IuLtVMg6TPfSVBw8QzjbTyb/+T0o25uJRiaP+oDo2+NhWllWQME2yHlqFwumV3b9k1FM76LSWrhowhDKV3ffcCJYuGdWYoCc/Px1dgWTTkOGP0oqlk2bD+9muz1kzDMKHeQmYazZpF8oZJ9YeM3Gxl21BmsBAq1lXb3M0rZ+/I0//Qwv23s+e++5zgH/LSTr4dykxFmRnW7syvCWKrg2PLgCGEdxvK9OOeouzXKWQamdExQ6Vl7vnpzBgMOosYuHT2BwcHB+4oePNgjt1ZHU3L0LF0H1XFncHQVR/6hAqO6Uxg8JNZjDH8TCjXyOV43DCh1bUAQ4ytrciGziSUPp1rm+45mZHzkVimuTrDivMWXYZqjIbJ9fjLDJVLGDprHFEM08s0/mp6sXZYwXMNGCZouCzVXNSwFK0dJpxprtCQp8uw5tebGtpJcz7R6NENk8ulZs1FaWG4fi11K8BQxVpcYBhLzr6oil8St+OTbIe9WtNBmQTS7iAcTVPXm1MXJ25mMK6L/cw6e3PqUczNlmzslz5yX5IxlMeLL4GULawH+24Q9lPnwf6r3W533ZtEuAcm+9rc9Zvy5LPd8uRD3clNJXA+JmIIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGnxH0oT8vyAJoBiAAAAAElFTkSuQmCC" alt="Эмблема" width="72" height="72" />
+      <div>
+        <p class="brand-label" id="companyName">БВБ Альянс Центр</p>
+        <h1 id="boardTitle">Эффективность менеджеров</h1>
+      </div>
+    </div>
+    <div class="top-meta">
+      <span class="pill" id="clockLabel">--:--</span>
+      <span class="pill" id="periodLabel">Июль 2026</span>
+      <div class="admin-controls" id="adminControls">
+        <button type="button" class="btn ghost" id="editBtn">✎ Правка</button>
+        <button type="button" class="btn ghost" id="fullscreenBtn">⛶ Экран</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="board">
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Рейтинг менеджеров</h2>
+        <p id="branchLabel">Главный офис</p>
+      </div>
+
+      <div class="table-wrap" id="scrollArea">
+        <table class="rating-table">
+          <thead>
+            <tr>
+              <th>Место</th>
+              <th>Менеджер</th>
+              <th>Кол-во сделок</th>
+              <th>Прибыль, ₽</th>
+              <th>План</th>
+            </tr>
+          </thead>
+          <tbody id="ratingBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <p class="tv-hint" id="tvHint">Раз в неделю правьте Google Таблицу с телефона — экран обновится сам</p>
+
+  <aside class="editor" id="editor" hidden>
+    <div class="editor-card">
+      <div class="editor-head">
+        <h2>Редактирование</h2>
+        <button type="button" class="btn ghost" id="closeEditor">✕</button>
+      </div>
+
+      <div class="fields">
+        <label>Название компании
+          <input type="text" id="inputCompany" />
+        </label>
+        <label>Заголовок
+          <input type="text" id="inputTitle" />
+        </label>
+        <label>Филиал / отдел
+          <input type="text" id="inputBranch" />
+        </label>
+        <label>Период
+          <input type="text" id="inputPeriod" />
+        </label>
+        <label class="full-width">ID Google Таблицы (для обновления с телефона)
+          <input type="text" id="inputSheetId" placeholder="например 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms" />
+        </label>
+        <label>Имя листа
+          <input type="text" id="inputSheetName" placeholder="Сотрудники" />
+        </label>
+      </div>
+
+      <div class="editor-people-head">
+        <h3>Сотрудники (ручной режим, если таблица не подключена)</h3>
+        <button type="button" class="btn" id="addPerson">+ Добавить</button>
+      </div>
+      <div id="peopleList" class="people-list"></div>
+
+      <div class="editor-actions">
+        <button type="button" class="btn" id="saveBtn">Сохранить</button>
+        <button type="button" class="btn ghost" id="refreshSheetBtn">Обновить из таблицы</button>
+        <button type="button" class="btn ghost" id="exportBtn">Экспорт JSON</button>
+        <label class="btn ghost file-btn">Импорт JSON
+          <input type="file" id="importFile" accept="application/json,.json" hidden />
+        </label>
+      </div>
+      <p class="hint">
+        Проще всего: Google Таблица с колонками Имя, Кол-во сделок, Прибыль, Сумма плана.
+        Процент плана считается сам: прибыль ÷ сумма плана × 100.
+      </p>
+    </div>
+  </aside>
+
+  <script>
+const STORAGE_KEY = "rating-board-v4";
+const REFRESH_MS = 60 * 1000; // check Google Sheet every minute
+
+const defaultData = {
+  company: "БВБ Альянс Центр",
+  title: "Эффективность менеджеров",
+  branch: "Главный офис",
+  period: "Июль 2026",
+  sheetId: "",
+  sheetName: "Сотрудники",
+  people: [
+    { name: "Трушков Эдуард", deals: 10, profit: 4000000, planAmount: 4000000 },
+    { name: "Глазунов Александр", deals: 2, profit: 1300000, planAmount: 1300000 },
+    { name: "Новиков Андрей", deals: 2, profit: 1000000, planAmount: 1000000 },
+    { name: "Куликов Александр", deals: 2, profit: 700000, planAmount: 700000 },
+    { name: "Павлова Наталья", deals: 4, profit: 460000, planAmount: 460000 },
+    { name: "Вельдиманова Екатерина", deals: 2, profit: 300000, planAmount: 300000 },
+    { name: "Костяев Олег", deals: 2, profit: 200000, planAmount: 200000 },
+    { name: "Алексеев Олег", deals: 2, profit: 68000, planAmount: 68000 },
+    { name: "Царапкин Алексей", deals: 2, profit: 40000, planAmount: 40000 },
+    { name: "Виноградов Кирилл", deals: 1, profit: 18000, planAmount: 18000 },
+  ],
+};
+
+function cloneData(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+let data = loadData();
+let scrollRaf = 0;
+let scrollDirection = 1;
+let cursorTimer = 0;
+let brandHoldTimer = 0;
+const SCROLL_SPEED = 0.7;
+
+const els = {
+  companyName: document.getElementById("companyName"),
+  boardTitle: document.getElementById("boardTitle"),
+  branchLabel: document.getElementById("branchLabel"),
+  periodLabel: document.getElementById("periodLabel"),
+  clockLabel: document.getElementById("clockLabel"),
+  ratingBody: document.getElementById("ratingBody"),
+  scrollArea: document.getElementById("scrollArea"),
+  editor: document.getElementById("editor"),
+  peopleList: document.getElementById("peopleList"),
+  inputCompany: document.getElementById("inputCompany"),
+  inputTitle: document.getElementById("inputTitle"),
+  inputBranch: document.getElementById("inputBranch"),
+  inputPeriod: document.getElementById("inputPeriod"),
+  inputSheetId: document.getElementById("inputSheetId"),
+  inputSheetName: document.getElementById("inputSheetName"),
+  tvHint: document.getElementById("tvHint"),
+};
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem("rating-board-v1");
+    if (!raw) return cloneData(defaultData);
+    const parsed = { ...cloneData(defaultData), ...JSON.parse(raw) };
+    parsed.people = (parsed.people || []).map((person) => {
+      const normalized = normalizePerson(person);
+      return {
+        name: normalized.name,
+        deals: normalized.deals,
+        profit: normalized.profit,
+        planAmount: normalized.planAmount,
+      };
+    });
+    return parsed;
+  } catch {
+    return cloneData(defaultData);
+  }
+}
+
+function saveData() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+function money(value) {
+  return new Intl.NumberFormat("ru-RU").format(Number(value) || 0);
+}
+
+function initials(name) {
+  return String(name || "?")
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || "")
+    .join("");
+}
+
+function toNumber(value) {
+  return Number(String(value ?? "").replace(/\s/g, "").replace("%", "").replace(",", ".")) || 0;
+}
+
+function normalizePerson(person) {
+  const name = person.name || "Без имени";
+  const deals = toNumber(person.deals ?? person.apps);
+  const profit = toNumber(person.profit);
+  let planAmount = toNumber(person.planAmount);
+
+  // Старые данные: plan был процентом вручную
+  if (!planAmount && person.plan != null && person.planAmount == null) {
+    const oldPct = toNumber(person.plan);
+    planAmount = oldPct > 0 ? Math.round(profit / (oldPct / 100)) : 0;
+  }
+
+  const planPercent = planAmount > 0 ? Math.round((profit / planAmount) * 100) : 0;
+
+  return { name, deals, profit, planAmount, planPercent };
+}
+
+function rankedPeople() {
+  return [...data.people]
+    .map(normalizePerson)
+    .sort((a, b) => b.profit - a.profit || b.deals - a.deals);
+}
+
+function rowHtml(person, place) {
+  const placeClass = place <= 3 ? `top-${place}` : "";
+  const profitClass = person.profit === 0 ? "zero" : "";
+  const dealsClass = person.deals === 0 ? "zero" : "";
+  const planClass = person.planPercent < 50 ? "low" : "ok";
+
+  return `
+    <tr>
+      <td><span class="place ${placeClass}">${place}</span></td>
+      <td>
+        <div class="person">
+          <div class="avatar" aria-hidden="true">${initials(person.name)}</div>
+          <div class="person-name">${escapeHtml(person.name)}</div>
+        </div>
+      </td>
+      <td><span class="metric ${dealsClass}">${person.deals}</span></td>
+      <td><span class="metric ${profitClass}">${money(person.profit)}</span></td>
+      <td>
+        <div class="plan">
+          <div class="bar"><span data-width="${Math.min(person.planPercent, 100)}"></span></div>
+          <span class="plan-value ${planClass}">${person.planPercent}%</span>
+        </div>
+      </td>
+    </tr>
+  `;
+}
+
+function renderBoard() {
+  els.companyName.textContent = data.company || "Компания";
+  els.boardTitle.textContent = data.title || "Рейтинг";
+  els.branchLabel.textContent = data.branch || "";
+  els.periodLabel.textContent = data.period || "";
+
+  const people = rankedPeople();
+  els.ratingBody.innerHTML = people.map((person, index) => rowHtml(person, index + 1)).join("");
+
+  requestAnimationFrame(() => {
+    els.ratingBody.querySelectorAll(".bar > span").forEach((bar) => {
+      bar.style.width = `${bar.dataset.width}%`;
+    });
+    restartAutoScroll();
+  });
+}
+
+function setSyncStatus() {
+  // status pill removed from UI
+}
+
+function pickField(row, names) {
+  for (const name of names) {
+    if (row[name] != null && String(row[name]).trim() !== "") return row[name];
+    const found = Object.keys(row).find((key) => key.trim().toLowerCase() === name.toLowerCase());
+    if (found && String(row[found]).trim() !== "") return row[found];
+  }
+  return "";
+}
+
+function parseSheetRows(rows) {
+  return rows
+    .map((row) =>
+      normalizePerson({
+        name: String(pickField(row, ["name", "имя", "фио", "менеджер", "сотрудник"])).trim(),
+        deals: pickField(row, ["deals", "сделки", "кол-во сделок", "количество сделок", "apps", "заявки"]),
+        profit: pickField(row, ["profit", "прибыль", "маржа"]),
+        planAmount: pickField(row, ["planAmount", "сумма плана", "план ₽", "план руб", "план"]),
+      })
+    )
+    .filter((person) => person.name)
+    .map(({ name, deals, profit, planAmount }) => ({ name, deals, profit, planAmount }));
+}
+
+async function fetchFromGoogleSheet() {
+  const sheetId = (data.sheetId || "").trim();
+  const sheetName = (data.sheetName || "Сотрудники").trim() || "Сотрудники";
+  if (!sheetId) {
+    setSyncStatus("локально");
+    return false;
+  }
+
+  setSyncStatus("обновление…");
+  const url = `https://opensheet.elk.sh/${encodeURIComponent(sheetId)}/${encodeURIComponent(sheetName)}`;
+
+  try {
+    const response = await fetch(url, { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const rows = await response.json();
+    if (!Array.isArray(rows) || !rows.length) throw new Error("Пустая таблица");
+
+    const people = parseSheetRows(rows);
+    if (!people.length) throw new Error("Нет строк с именами");
+
+    data.people = people;
+    saveData();
+    renderBoard();
+    const time = new Date().toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+    setSyncStatus(`таблица ${time}`);
+    return true;
+  } catch (error) {
+    console.error(error);
+    setSyncStatus("ошибка таблицы");
+    return false;
+  }
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+function escapeAttr(str) {
+  return String(str).replaceAll('"', "&quot;");
+}
+
+function openEditor() {
+  document.body.classList.add("editing", "show-cursor", "show-admin");
+  els.inputCompany.value = data.company;
+  els.inputTitle.value = data.title;
+  els.inputBranch.value = data.branch;
+  els.inputPeriod.value = data.period;
+  els.inputSheetId.value = data.sheetId || "";
+  els.inputSheetName.value = data.sheetName || "Сотрудники";
+  renderPeopleEditor();
+  els.editor.hidden = false;
+  stopAutoScroll();
+}
+
+function closeEditor() {
+  els.editor.hidden = true;
+  document.body.classList.remove("editing");
+  restartAutoScroll();
+  scheduleHideCursor();
+}
+
+function renderPeopleEditor() {
+  els.peopleList.innerHTML = data.people
+    .map((raw, index) => {
+      const person = normalizePerson(raw);
+      return `
+      <div class="person-row">
+        <label>Имя
+          <input type="text" data-field="name" value="${escapeAttr(person.name)}" />
+        </label>
+        <label>Кол-во сделок
+          <input type="number" min="0" data-field="deals" value="${person.deals}" />
+        </label>
+        <label>Прибыль, ₽
+          <input type="number" min="0" data-field="profit" value="${person.profit}" />
+        </label>
+        <label>Сумма плана, ₽
+          <input type="number" min="0" data-field="planAmount" value="${person.planAmount}" />
+        </label>
+        <button type="button" class="btn ghost remove" data-remove="${index}">Удалить</button>
+      </div>
+    `;
+    })
+    .join("");
+}
+
+function readEditorIntoData() {
+  data.company = els.inputCompany.value.trim() || "Компания";
+  data.title = els.inputTitle.value.trim() || "Рейтинг";
+  data.branch = els.inputBranch.value.trim();
+  data.period = els.inputPeriod.value.trim();
+  data.sheetId = els.inputSheetId.value.trim();
+  data.sheetName = els.inputSheetName.value.trim() || "Сотрудники";
+  data.people = [...els.peopleList.querySelectorAll(".person-row")].map((row) => ({
+    name: row.querySelector('[data-field="name"]').value.trim() || "Без имени",
+    deals: Number(row.querySelector('[data-field="deals"]').value) || 0,
+    profit: Number(row.querySelector('[data-field="profit"]').value) || 0,
+    planAmount: Number(row.querySelector('[data-field="planAmount"]').value) || 0,
+  }));
+}
+
+function stopAutoScroll() {
+  if (scrollRaf) {
+    cancelAnimationFrame(scrollRaf);
+    scrollRaf = 0;
+  }
+}
+
+function restartAutoScroll() {
+  stopAutoScroll();
+  const area = els.scrollArea;
+  area.scrollTop = 0;
+  scrollDirection = 1;
+
+  const tick = () => {
+    scrollRaf = requestAnimationFrame(tick);
+    if (!els.editor.hidden) return;
+
+    const max = area.scrollHeight - area.clientHeight;
+    if (max <= 8) return;
+
+    area.scrollTop += scrollDirection * SCROLL_SPEED;
+
+    if (area.scrollTop >= max - 0.5) {
+      area.scrollTop = max;
+      scrollDirection = -1;
+    } else if (area.scrollTop <= 0) {
+      area.scrollTop = 0;
+      scrollDirection = 1;
+    }
+  };
+
+  scrollRaf = requestAnimationFrame(tick);
+}
+
+function updateClock() {
+  const now = new Date();
+  els.clockLabel.textContent = now.toLocaleTimeString("ru-RU", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function toggleFullscreen() {
+  const root = document.documentElement;
+  if (!document.fullscreenElement) {
+    (root.requestFullscreen || root.webkitRequestFullscreen || root.msRequestFullscreen)?.call(root);
+  } else {
+    (document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen)?.call(document);
+  }
+}
+
+function syncFullscreenClass() {
+  document.body.classList.toggle("is-fullscreen", Boolean(document.fullscreenElement));
+}
+
+document.addEventListener("fullscreenchange", syncFullscreenClass);
+document.addEventListener("webkitfullscreenchange", syncFullscreenClass);
+
+function showCursorBriefly() {
+  document.body.classList.add("show-cursor");
+  scheduleHideCursor();
+}
+
+function scheduleHideCursor() {
+  clearTimeout(cursorTimer);
+  if (!els.editor.hidden) return;
+  cursorTimer = setTimeout(() => {
+    document.body.classList.remove("show-cursor", "show-admin");
+  }, 2500);
+}
+
+function revealAdmin() {
+  document.body.classList.add("show-admin", "show-cursor");
+  scheduleHideCursor();
+}
+
+document.getElementById("editBtn").addEventListener("click", openEditor);
+document.getElementById("closeEditor").addEventListener("click", closeEditor);
+document.getElementById("fullscreenBtn").addEventListener("click", toggleFullscreen);
+document.getElementById("bigFullscreenBtn")?.addEventListener("click", toggleFullscreen);
+
+document.getElementById("addPerson").addEventListener("click", () => {
+  readEditorIntoData();
+  data.people.push({ name: "Новый сотрудник", deals: 0, profit: 0, planAmount: 0 });
+  renderPeopleEditor();
+});
+
+els.peopleList.addEventListener("click", (event) => {
+  const btn = event.target.closest("[data-remove]");
+  if (!btn) return;
+  readEditorIntoData();
+  data.people.splice(Number(btn.dataset.remove), 1);
+  renderPeopleEditor();
+});
+
+document.getElementById("saveBtn").addEventListener("click", async () => {
+  readEditorIntoData();
+  saveData();
+  renderBoard();
+  if (data.sheetId) await fetchFromGoogleSheet();
+  closeEditor();
+});
+
+document.getElementById("refreshSheetBtn").addEventListener("click", async () => {
+  readEditorIntoData();
+  saveData();
+  await fetchFromGoogleSheet();
+});
+
+document.getElementById("exportBtn").addEventListener("click", () => {
+  readEditorIntoData();
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "rating-board.json";
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById("importFile").addEventListener("change", async (event) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  try {
+    const parsed = JSON.parse(await file.text());
+    data = { ...cloneData(defaultData), ...parsed, people: parsed.people || [] };
+    saveData();
+    openEditor();
+    renderBoard();
+    if (data.sheetId) await fetchFromGoogleSheet();
+  } catch {
+    alert("Не удалось прочитать JSON-файл");
+  } finally {
+    event.target.value = "";
+  }
+});
+
+document.addEventListener("keydown", (event) => {
+  const tag = document.activeElement?.tagName;
+  const typing = tag === "INPUT" || tag === "TEXTAREA";
+
+  if (event.key === "Escape") {
+    closeEditor();
+    return;
+  }
+
+  if (!typing && (event.key === "f" || event.key === "F" || event.key === "а" || event.key === "А")) {
+    toggleFullscreen();
+  }
+
+  if (!typing && (event.key === "e" || event.key === "E" || event.key === "у" || event.key === "У")) {
+    if (els.editor.hidden) openEditor();
+    else closeEditor();
+  }
+});
+
+const brand = document.getElementById("brandHotspot");
+brand.addEventListener("pointerdown", () => {
+  brandHoldTimer = setTimeout(() => openEditor(), 1800);
+});
+["pointerup", "pointerleave", "pointercancel"].forEach((type) => {
+  brand.addEventListener(type, () => clearTimeout(brandHoldTimer));
+});
+
+document.addEventListener("mousemove", () => {
+  revealAdmin();
+});
+
+document.addEventListener("pointerdown", () => {
+  showCursorBriefly();
+});
+
+setInterval(() => {
+  document.body.dataset.tick = String(Date.now());
+}, 30000);
+
+updateClock();
+setInterval(updateClock, 15000);
+renderBoard();
+fetchFromGoogleSheet();
+setInterval(fetchFromGoogleSheet, REFRESH_MS);
+
+setTimeout(() => els.tvHint.classList.add("hide"), 9000);
+
+document.addEventListener(
+  "pointerdown",
+  function onceFs() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.().catch(() => {});
+    }
+    document.removeEventListener("pointerdown", onceFs);
+  },
+  { once: true }
+);
+
+</script>
+</body>
+</html>
