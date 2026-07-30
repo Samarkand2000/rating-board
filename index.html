@@ -374,22 +374,24 @@ body.show-admin .admin-controls { display: inline-flex; }
   display: flex;
   flex-direction: column;
   gap: 12px;
-  width: min(760px, 92vw);
+  width: min(860px, 94vw);
   pointer-events: none;
 }
 
 .payment-alert {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  padding: 20px 24px;
-  border-radius: 18px;
-  background: linear-gradient(135deg, rgba(18, 44, 36, 0.96), rgba(12, 28, 24, 0.98));
-  border: 1px solid rgba(61, 214, 140, 0.35);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+  position: relative;
+  overflow: hidden;
+  padding: 22px 24px 18px;
+  border-radius: 22px;
+  background:
+    linear-gradient(145deg, rgba(22, 52, 42, 0.98), rgba(10, 24, 20, 0.99));
+  border: 1px solid rgba(61, 214, 140, 0.42);
+  box-shadow:
+    0 28px 70px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset;
   opacity: 0;
-  transform: translateY(24px) scale(0.98);
-  transition: opacity 0.45s ease, transform 0.45s ease;
+  transform: translateY(28px) scale(0.96);
+  transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .payment-alert.show {
@@ -399,57 +401,146 @@ body.show-admin .admin-controls { display: inline-flex; }
 
 .payment-alert.hide {
   opacity: 0;
-  transform: translateY(-12px) scale(0.98);
+  transform: translateY(-16px) scale(0.98);
 }
 
-.payment-alert-icon {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
+.payment-alert-glow {
+  position: absolute;
+  inset: -40% auto auto 50%;
+  width: 280px;
+  height: 280px;
+  transform: translateX(-50%);
+  background: radial-gradient(circle, rgba(61, 214, 140, 0.22), transparent 68%);
+  pointer-events: none;
+  animation: paymentGlow 2.4s ease-in-out infinite;
+}
+
+.payment-alert-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(143, 238, 192, 0.14);
+}
+
+.payment-alert-badge {
+  width: 68px;
+  height: 68px;
+  border-radius: 18px;
   display: grid;
   place-items: center;
   flex-shrink: 0;
-  font-size: 28px;
+  font-size: 30px;
   font-weight: 800;
   color: #fff;
-  background: linear-gradient(145deg, #1f9d6a, #3dd68c);
-  box-shadow: 0 0 0 6px rgba(61, 214, 140, 0.12);
+  background: linear-gradient(145deg, #1f9d6a, #3dd68c 55%, #ffd166);
+  box-shadow:
+    0 10px 24px rgba(31, 157, 106, 0.35),
+    0 0 0 6px rgba(61, 214, 140, 0.1);
+  animation: paymentBadgePop 0.55s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.payment-alert-body {
+.payment-alert-head-text {
   min-width: 0;
 }
 
 .payment-alert-title {
-  margin: 0 0 6px;
-  font-size: 14px;
-  letter-spacing: 0.08em;
+  margin: 0;
+  font-size: 15px;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: #8feec0;
   font-weight: 800;
 }
 
-.payment-alert-manager {
-  margin: 0;
-  font-size: 28px;
-  font-weight: 800;
-  line-height: 1.15;
-}
-
-.payment-alert-amount {
+.payment-alert-sub {
   margin: 4px 0 0;
-  font-family: var(--mono);
-  font-size: 34px;
-  font-weight: 800;
-  color: var(--rank-1);
+  font-size: 14px;
+  color: rgba(147, 164, 195, 0.85);
+  font-weight: 600;
 }
 
-.payment-alert-client,
-.payment-alert-text {
-  margin: 6px 0 0;
-  font-size: 18px;
-  color: var(--muted);
-  font-weight: 600;
+.payment-alert-rows {
+  position: relative;
+  display: grid;
+  gap: 12px;
+}
+
+.payment-alert-row {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 12px;
+  align-items: baseline;
+}
+
+.payment-alert-label {
+  font-size: 14px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(147, 164, 195, 0.9);
+  font-weight: 700;
+}
+
+.payment-alert-value {
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--text);
+  word-break: break-word;
+}
+
+.payment-alert-row-amount .payment-alert-value {
+  font-family: var(--mono);
+}
+
+.payment-alert-sum {
+  font-size: 36px;
+  color: var(--rank-1);
+  text-shadow: 0 0 24px rgba(255, 209, 102, 0.18);
+}
+
+.payment-alert-custom {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.payment-alert-progress {
+  position: relative;
+  height: 4px;
+  margin-top: 18px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.payment-alert-progress > span {
+  display: block;
+  height: 100%;
+  width: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #1f9d6a, #ffd166);
+  transform-origin: left center;
+  animation: paymentProgress var(--notify-duration, 18s) linear forwards;
+}
+
+@keyframes paymentGlow {
+  0%, 100% { opacity: 0.55; transform: translateX(-50%) scale(1); }
+  50% { opacity: 1; transform: translateX(-50%) scale(1.08); }
+}
+
+@keyframes paymentBadgePop {
+  0% { transform: scale(0.7) rotate(-8deg); }
+  70% { transform: scale(1.06) rotate(2deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+
+@keyframes paymentProgress {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
 }
 
 .editor {
@@ -572,11 +663,12 @@ input, textarea {
   .avatar { width: 36px; height: 36px; font-size: 13px; }
   .plan-value { font-size: 16px; }
   .tv-hint { display: none; }
-  .payment-alerts { bottom: 56px; }
-  .payment-alert { padding: 14px 16px; gap: 12px; }
-  .payment-alert-icon { width: 48px; height: 48px; font-size: 22px; }
-  .payment-alert-manager { font-size: 22px; }
-  .payment-alert-amount { font-size: 26px; }
+  .payment-alerts { bottom: 56px; width: min(760px, 96vw); }
+  .payment-alert { padding: 16px 18px 14px; border-radius: 18px; }
+  .payment-alert-badge { width: 54px; height: 54px; font-size: 24px; border-radius: 14px; }
+  .payment-alert-row { grid-template-columns: 1fr; gap: 4px; }
+  .payment-alert-value { font-size: 20px; }
+  .payment-alert-sum { font-size: 28px; }
 }
 
 </style>
@@ -689,7 +781,7 @@ const SEEN_NOTIFY_KEY = "rating-board-seen-notify-v1";
 const NOTIFY_INIT_KEY = "rating-board-notify-init-v1";
 const REFRESH_MS = 60 * 1000;
 const NOTIFY_REFRESH_MS = 30 * 1000;
-const NOTIFY_SHOW_MS = 15000;
+const NOTIFY_SHOW_MS = 18000;
 
 const defaultData = {
   company: "БВБ Альянс Центр",
@@ -724,6 +816,8 @@ let cursorTimer = 0;
 let brandHoldTimer = 0;
 let notifyQueue = [];
 let notifyShowing = false;
+let audioContext = null;
+let audioUnlocked = false;
 const SCROLL_SPEED = 0.7;
 
 const els = {
@@ -940,7 +1034,9 @@ function parseNotificationRows(rows) {
   return rows
     .map((row, index) => {
       const id = String(pickField(row, ["id", "ID", "номер", "deal_id", "сделка"])).trim();
-      const manager = String(pickField(row, ["manager", "менеджер", "сотрудник", "имя", "ответственный"])).trim();
+      const manager = String(
+        pickField(row, ["manager", "менеджер", "сотрудник", "имя", "фио", "ответственный"])
+      ).trim();
       const client = String(pickField(row, ["client", "клиент", "компания", "контрагент"])).trim();
       const amount = toNumber(pickField(row, ["amount", "сумма", "оплата", "прибыль"]));
       const time = String(pickField(row, ["time", "время", "дата", "timestamp"])).trim();
@@ -956,14 +1052,77 @@ function parseNotificationRows(rows) {
 
 function buildNotificationHtml(note) {
   if (note.text) {
-    return `<p class="payment-alert-text">${escapeHtml(note.text)}</p>`;
+    return `<p class="payment-alert-custom">${escapeHtml(note.text)}</p>`;
   }
 
-  const parts = [];
-  if (note.manager) parts.push(`<p class="payment-alert-manager">${escapeHtml(note.manager)}</p>`);
-  if (note.amount) parts.push(`<p class="payment-alert-amount">${money(note.amount)} ₽</p>`);
-  if (note.client) parts.push(`<p class="payment-alert-client">${escapeHtml(note.client)}</p>`);
-  return parts.join("") || `<p class="payment-alert-text">Оплата получена</p>`;
+  const rows = [];
+  if (note.manager) {
+    rows.push(`
+      <div class="payment-alert-row">
+        <span class="payment-alert-label">Сотрудник</span>
+        <span class="payment-alert-value">${escapeHtml(note.manager)}</span>
+      </div>
+    `);
+  }
+  if (note.client) {
+    rows.push(`
+      <div class="payment-alert-row">
+        <span class="payment-alert-label">Клиент</span>
+        <span class="payment-alert-value">${escapeHtml(note.client)}</span>
+      </div>
+    `);
+  }
+  if (note.amount) {
+    rows.push(`
+      <div class="payment-alert-row payment-alert-row-amount">
+        <span class="payment-alert-label">Сумма</span>
+        <span class="payment-alert-value payment-alert-sum">${money(note.amount)} ₽</span>
+      </div>
+    `);
+  }
+
+  return rows.join("") || `<p class="payment-alert-custom">Оплата получена</p>`;
+}
+
+function ensureAudio() {
+  try {
+    if (!audioContext) {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return false;
+      audioContext = new Ctx();
+    }
+    if (audioContext.state === "suspended") audioContext.resume();
+    audioUnlocked = true;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function playPaymentSound() {
+  if (!ensureAudio() || !audioUnlocked) return;
+
+  const ctx = audioContext;
+  const now = ctx.currentTime;
+  const tones = [
+    { freq: 659.25, start: 0, dur: 0.11, gain: 0.11 },
+    { freq: 880, start: 0.09, dur: 0.13, gain: 0.1 },
+    { freq: 1174.66, start: 0.18, dur: 0.42, gain: 0.09 },
+  ];
+
+  tones.forEach(({ freq, start, dur, gain }) => {
+    const osc = ctx.createOscillator();
+    const amp = ctx.createGain();
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(freq, now + start);
+    amp.gain.setValueAtTime(0.0001, now + start);
+    amp.gain.exponentialRampToValueAtTime(gain, now + start + 0.025);
+    amp.gain.exponentialRampToValueAtTime(0.0001, now + start + dur);
+    osc.connect(amp);
+    amp.connect(ctx.destination);
+    osc.start(now + start);
+    osc.stop(now + start + dur + 0.04);
+  });
 }
 
 function showPaymentAlert(note) {
@@ -979,14 +1138,24 @@ function drainNotifyQueue() {
   }
 
   notifyShowing = true;
+  playPaymentSound();
+
   const card = document.createElement("div");
   card.className = "payment-alert show";
+  card.style.setProperty("--notify-duration", `${NOTIFY_SHOW_MS}ms`);
   card.innerHTML = `
-    <div class="payment-alert-icon" aria-hidden="true">₽</div>
-    <div class="payment-alert-body">
-      <p class="payment-alert-title">Оплата получена</p>
+    <div class="payment-alert-glow" aria-hidden="true"></div>
+    <div class="payment-alert-head">
+      <div class="payment-alert-badge" aria-hidden="true">₽</div>
+      <div class="payment-alert-head-text">
+        <p class="payment-alert-title">Оплата получена</p>
+        <p class="payment-alert-sub">Поступление на счёт</p>
+      </div>
+    </div>
+    <div class="payment-alert-rows">
       ${buildNotificationHtml(note)}
     </div>
+    <div class="payment-alert-progress" aria-hidden="true"><span></span></div>
   `;
 
   els.paymentAlerts.appendChild(card);
@@ -1303,6 +1472,7 @@ setTimeout(() => els.tvHint.classList.add("hide"), 9000);
 document.addEventListener(
   "pointerdown",
   function onceFs() {
+    ensureAudio();
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen?.().catch(() => {});
     }
