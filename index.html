@@ -771,10 +771,10 @@ input, textarea {
         <label class="full-width">ID Google Таблицы (для обновления с телефона)
           <input type="text" id="inputSheetId" placeholder="например 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms" />
         </label>
-        <label>Имя листа (рейтинг)
-          <input type="text" id="inputSheetName" placeholder="Сотрудники" />
+        <label>Лист «Список» (рейтинг)
+          <input type="text" id="inputSheetName" placeholder="Список" />
         </label>
-        <label class="full-width">Имя листа (уведомления об оплатах)
+        <label class="full-width">Лист «Уведомления» (оплаты от бухгалтера)
           <input type="text" id="inputNotifySheetName" placeholder="Уведомления" />
         </label>
       </div>
@@ -794,8 +794,8 @@ input, textarea {
         </label>
       </div>
       <p class="hint">
-        Рейтинг: лист с колонками Имя, Кол-во сделок, Прибыль, Сумма плана.
-        Уведомления: отдельный лист с колонками ID, Менеджер, Сумма, Клиент, Время — при новой строке на экране всплывает «Оплата получена», цифры рейтинга не меняются.
+        Лист «Список»: рейтинг (Имя, Кол-во сделок, Прибыль, Сумма плана).
+        Лист «Уведомления»: бухгалтер пишет ФИО — голосом «Оплата пришла» и фамилия имя. Клиент и сумма на экране, если указаны.
       </p>
     </div>
   </aside>
@@ -815,7 +815,7 @@ const defaultData = {
   branch: "Главный офис",
   period: "Июль 2026",
   sheetId: "1ohkIaOIu1slCsIscsd9ithRrOwdzhxuS1-zgRFIfqBI",
-  sheetName: "1",
+  sheetName: "Список",
   notifySheetName: "Уведомления",
   people: [
     { name: "Трушков Эдуард", deals: 10, profit: 4000000, planAmount: 4000000 },
@@ -875,6 +875,7 @@ function loadData() {
     const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem("rating-board-v1");
     if (!raw) return cloneData(defaultData);
     const parsed = { ...cloneData(defaultData), ...JSON.parse(raw) };
+    if (parsed.sheetName === "1") parsed.sheetName = "Список";
     parsed.people = (parsed.people || []).map((person) => {
       const normalized = normalizePerson(person);
       return {
@@ -1007,7 +1008,7 @@ function parseSheetRows(rows) {
 
 async function fetchFromGoogleSheet() {
   const sheetId = (data.sheetId || "").trim();
-  const sheetName = (data.sheetName || "Сотрудники").trim() || "Сотрудники";
+  const sheetName = (data.sheetName || "Список").trim() || "Список";
   if (!sheetId) {
     setSyncStatus("локально");
     return false;
@@ -1070,9 +1071,9 @@ function parseNotificationRows(rows) {
       const amount = toNumber(pickField(row, ["amount", "сумма", "оплата", "прибыль"]));
       const time = String(pickField(row, ["time", "время", "дата", "timestamp"])).trim();
       const text = String(pickField(row, ["text", "текст", "сообщение", "message"])).trim();
-      const stableId = id || [time, manager, amount, client, index].join("|");
+      const stableId = id || time || `${manager}|${client}|${amount}|${index}`;
 
-      if (!manager && !text && !amount) return null;
+      if (!manager) return null;
 
       return { id: stableId, manager, client, amount, time, text };
     })
@@ -1146,7 +1147,7 @@ function amountToSpeech(value) {
 function buildNotificationSpeech(note) {
   const manager = String(note.manager || "").trim();
   return {
-    intro: "Оплата получена",
+    intro: "Оплата пришла",
     name: manager,
   };
 }
@@ -1454,7 +1455,7 @@ async function drainNotifyQueue() {
     <div class="payment-alert-head">
       <div class="payment-alert-badge" aria-hidden="true">₽</div>
       <div class="payment-alert-head-text">
-        <p class="payment-alert-title">Оплата получена</p>
+        <p class="payment-alert-title">Оплата пришла</p>
         <p class="payment-alert-sub">Поступление на счёт</p>
       </div>
     </div>
@@ -1536,7 +1537,7 @@ function openEditor() {
   els.inputBranch.value = data.branch;
   els.inputPeriod.value = data.period;
   els.inputSheetId.value = data.sheetId || "";
-  els.inputSheetName.value = data.sheetName || "Сотрудники";
+  els.inputSheetName.value = data.sheetName || "Список";
   els.inputNotifySheetName.value = data.notifySheetName || "Уведомления";
   renderPeopleEditor();
   els.editor.hidden = false;
@@ -1581,7 +1582,7 @@ function readEditorIntoData() {
   data.branch = els.inputBranch.value.trim();
   data.period = els.inputPeriod.value.trim();
   data.sheetId = els.inputSheetId.value.trim();
-  data.sheetName = els.inputSheetName.value.trim() || "Сотрудники";
+  data.sheetName = els.inputSheetName.value.trim() || "Список";
   data.notifySheetName = els.inputNotifySheetName.value.trim() || "Уведомления";
   data.people = [...els.peopleList.querySelectorAll(".person-row")].map((row) => ({
     name: row.querySelector('[data-field="name"]').value.trim() || "Без имени",
