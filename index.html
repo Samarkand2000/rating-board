@@ -547,7 +547,7 @@ body.show-admin .admin-controls { display: inline-flex; }
   border-radius: inherit;
   background: linear-gradient(90deg, #1f9d6a, #ffd166);
   transform-origin: left center;
-  animation: paymentProgress var(--notify-duration, 5s) linear forwards;
+  animation: paymentProgress var(--notify-duration, 10s) linear forwards;
 }
 
 @keyframes paymentGlow {
@@ -806,7 +806,8 @@ const SEEN_NOTIFY_KEY = "rating-board-seen-notify-v1";
 const NOTIFY_INIT_KEY = "rating-board-notify-init-v1";
 const REFRESH_MS = 60 * 1000;
 const NOTIFY_REFRESH_MS = 30 * 1000;
-const NOTIFY_SHOW_MS = 5000;
+const NOTIFY_SHOW_MS = 10000;
+const CHIME_MS = 1900;
 
 const defaultData = {
   company: "БВБ Альянс Центр",
@@ -1143,14 +1144,19 @@ function amountToSpeech(value) {
 }
 
 function buildNotificationSpeech(note) {
-  if (note.text) {
-    const manager = String(note.manager || "").trim();
-    if (manager) return `Оплата получена. ${manager}.`;
-    return note.text;
-  }
+  const manager = String(note.manager || "").trim();
+  return {
+    intro: "Оплата получена",
+    name: manager,
+  };
+}
 
-  if (note.manager) return `Оплата получена. ${note.manager}.`;
-  return "Оплата получена.";
+function delay(ms) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function preloadVoices() {
+  window.speechSynthesis?.getVoices?.();
 }
 
 function waitForVoices() {
@@ -1171,21 +1177,17 @@ function waitForVoices() {
     if (window.speechSynthesis) {
       window.speechSynthesis.onvoiceschanged = finish;
     }
-    window.setTimeout(finish, 700);
+    window.setTimeout(finish, 1500);
   });
 }
 
 function pickRussianVoice(voices) {
   return (
     voices.find((voice) => voice.lang?.toLowerCase().startsWith("ru")) ||
-    voices.find((voice) => /ru|russian/i.test(`${voice.lang} ${voice.name}`)) ||
+    voices.find((voice) => /ru|russian|milena|irina|pavel|yuri|dmitri|alena/i.test(`${voice.lang} ${voice.name}`)) ||
     voices[0] ||
     null
   );
-}
-
-function estimateSpeechMs(text) {
-  return Math.min(20000, Math.max(NOTIFY_SHOW_MS, String(text).length * 75));
 }
 
 function speakText(text) {
@@ -1196,12 +1198,11 @@ function speakText(text) {
     }
 
     waitForVoices().then((voices) => {
-      window.speechSynthesis.cancel();
       const utter = new SpeechSynthesisUtterance(text);
       const voice = pickRussianVoice(voices);
       utter.lang = "ru-RU";
       if (voice) utter.voice = voice;
-      utter.rate = 0.92;
+      utter.rate = 0.9;
       utter.pitch = 1;
       utter.volume = 1;
 
@@ -1214,24 +1215,44 @@ function speakText(text) {
 
       utter.onend = () => finish(true);
       utter.onerror = () => finish(false);
-      window.setTimeout(() => finish(true), estimateSpeechMs(text) + 1000);
+      window.setTimeout(() => finish(false), 7000);
 
       window.speechSynthesis.speak(utter);
+
+      window.setTimeout(() => {
+        if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+      }, 120);
+      window.setTimeout(() => {
+        if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+      }, 400);
     });
   });
 }
 
-async function announcePayment(note) {
-  const text = buildNotificationSpeech(note);
-  const spoken = await speakText(text);
+async function speakPaymentVoice(note) {
+  const { intro, name } = buildNotificationSpeech(note);
+  window.speechSynthesis?.cancel?.();
+  await delay(80);
 
+  const introOk = await speakText(intro);
+  if (!introOk) return false;
+
+  if (name) {
+    await delay(180);
+    return speakText(name);
+  }
+
+  return true;
+}
+
+async function announcePayment(note) {
+  await playPaymentSound();
+  await delay(280);
+  const spoken = await speakPaymentVoice(note);
   if (spoken) {
     audioUnlocked = true;
     hideSoundHint();
-    return;
   }
-
-  await playPaymentSound();
 }
 
 function writeWavString(view, offset, text) {
@@ -1240,7 +1261,7 @@ function writeWavString(view, offset, text) {
 
 function makePaymentSoundUri() {
   const sampleRate = 22050;
-  const duration = 0.65;
+  const duration = 1.85;
   const numSamples = Math.floor(sampleRate * duration);
   const buffer = new ArrayBuffer(44 + numSamples * 2);
   const view = new DataView(buffer);
@@ -1260,9 +1281,10 @@ function makePaymentSoundUri() {
   view.setUint32(40, numSamples * 2, true);
 
   const tones = [
-    { freq: 784, start: 0, len: 0.12, vol: 0.55 },
-    { freq: 988, start: 0.1, len: 0.14, vol: 0.5 },
-    { freq: 1175, start: 0.22, len: 0.35, vol: 0.48 },
+    { freq: 587, start: 0, len: 0.22, vol: 0.42 },
+    { freq: 740, start: 0.26, len: 0.24, vol: 0.4 },
+    { freq: 880, start: 0.58, len: 0.32, vol: 0.38 },
+    { freq: 988, start: 0.98, len: 0.72, vol: 0.34 },
   ];
 
   for (let i = 0; i < numSamples; i++) {
@@ -1271,8 +1293,8 @@ function makePaymentSoundUri() {
     tones.forEach(({ freq, start, len, vol }) => {
       if (t >= start && t < start + len) {
         const local = t - start;
-        const attack = Math.min(1, local / 0.015);
-        const release = Math.max(0, 1 - Math.max(0, local - len + 0.08) / 0.08);
+        const attack = Math.min(1, local / 0.02);
+        const release = Math.max(0, 1 - Math.max(0, local - len + 0.1) / 0.1);
         sample += Math.sin((Math.PI * 2 * freq * t)) * vol * attack * release;
       }
     });
@@ -1351,9 +1373,10 @@ function playWebAudioFallback() {
     const ctx = audioContext;
     const now = ctx.currentTime;
     const tones = [
-      { freq: 784, start: 0, dur: 0.12, gain: 0.2 },
-      { freq: 988, start: 0.1, dur: 0.14, gain: 0.18 },
-      { freq: 1175, start: 0.22, dur: 0.35, gain: 0.16 },
+      { freq: 587, start: 0, dur: 0.22, gain: 0.16 },
+      { freq: 740, start: 0.26, dur: 0.24, gain: 0.15 },
+      { freq: 880, start: 0.58, dur: 0.32, gain: 0.14 },
+      { freq: 988, start: 0.98, dur: 0.72, gain: 0.12 },
     ];
 
     tones.forEach(({ freq, start, dur, gain }) => {
@@ -1387,7 +1410,12 @@ async function playPaymentSound() {
       await audio.play();
       audioUnlocked = true;
       hideSoundHint();
-      return;
+      await new Promise((resolve) => {
+        const finish = () => resolve(true);
+        audio.onended = finish;
+        window.setTimeout(finish, CHIME_MS);
+      });
+      return true;
     } catch (error) {
       console.warn("audio play", error);
     }
@@ -1396,10 +1424,12 @@ async function playPaymentSound() {
   if (playWebAudioFallback()) {
     audioUnlocked = true;
     hideSoundHint();
-    return;
+    await delay(CHIME_MS);
+    return true;
   }
 
   showSoundHint();
+  return false;
 }
 
 function showPaymentAlert(note) {
@@ -1415,12 +1445,10 @@ async function drainNotifyQueue() {
   }
 
   notifyShowing = true;
-  const speechText = buildNotificationSpeech(note);
-  const showMs = estimateSpeechMs(speechText);
 
   const card = document.createElement("div");
   card.className = "payment-alert show";
-  card.style.setProperty("--notify-duration", `${showMs}ms`);
+  card.style.setProperty("--notify-duration", `${NOTIFY_SHOW_MS}ms`);
   card.innerHTML = `
     <div class="payment-alert-glow" aria-hidden="true"></div>
     <div class="payment-alert-head">
@@ -1438,17 +1466,17 @@ async function drainNotifyQueue() {
 
   els.paymentAlerts.appendChild(card);
 
+  announcePayment(note);
+
   window.setTimeout(() => {
     card.classList.remove("show");
     card.classList.add("hide");
-  }, showMs - 500);
-
-  await announcePayment(note);
+  }, NOTIFY_SHOW_MS - 500);
 
   window.setTimeout(() => {
     card.remove();
     drainNotifyQueue();
-  }, 500);
+  }, NOTIFY_SHOW_MS);
 }
 
 async function fetchPaymentNotifications() {
@@ -1769,6 +1797,10 @@ function bindAudioUnlock() {
 });
 
 initPaymentAudio();
+preloadVoices();
+if (window.speechSynthesis) {
+  window.speechSynthesis.onvoiceschanged = preloadVoices;
+}
 showSoundHint();
 
 document.addEventListener(
