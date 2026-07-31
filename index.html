@@ -524,7 +524,7 @@ body.show-admin .admin-controls { display: inline-flex; }
   border-radius: inherit;
   background: linear-gradient(90deg, #1f9d6a, #ffd166);
   transform-origin: left center;
-  animation: paymentProgress var(--notify-duration, 18s) linear forwards;
+  animation: paymentProgress var(--notify-duration, 5s) linear forwards;
 }
 
 @keyframes paymentGlow {
@@ -781,7 +781,7 @@ const SEEN_NOTIFY_KEY = "rating-board-seen-notify-v1";
 const NOTIFY_INIT_KEY = "rating-board-notify-init-v1";
 const REFRESH_MS = 60 * 1000;
 const NOTIFY_REFRESH_MS = 30 * 1000;
-const NOTIFY_SHOW_MS = 18000;
+const NOTIFY_SHOW_MS = 5000;
 
 const defaultData = {
   company: "БВБ Альянс Центр",
