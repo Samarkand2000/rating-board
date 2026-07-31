@@ -1,3 +1,4 @@
+<!-- build v23 2026-07-31 14:03 -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -6,7 +7,7 @@
   <meta name="color-scheme" content="dark" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <title>Рейтинг сотрудников — TV</title>
+  <title>Рейтинг сотрудников — TV v23</title>
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
@@ -363,50 +364,10 @@ body.show-admin .admin-controls { display: inline-flex; }
 .plan-value.low { color: var(--warn); }
 .plan-value.ok { color: var(--good); }
 
-.tv-hint {
-  position: fixed;
-  left: 50%;
-  bottom: 12px;
-  transform: translateX(-50%);
-  margin: 0;
-  color: rgba(147, 164, 195, 0.7);
-  font-size: 13px;
-  opacity: 1;
-  transition: opacity 1s ease;
-  pointer-events: none;
-  text-align: center;
-  max-width: 90vw;
-}
-
-.tv-hint.hide { opacity: 0; }
-
-.sound-hint {
-  position: fixed;
-  top: 14px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 36;
-  margin: 0;
-  padding: 10px 16px;
-  border-radius: 999px;
-  background: rgba(255, 106, 61, 0.92);
-  color: #fff;
-  font-size: 14px;
-  font-weight: 700;
-  box-shadow: var(--shadow);
-  transition: opacity 0.6s ease, transform 0.6s ease;
-  pointer-events: none;
-}
-
-.sound-hint.hide {
-  opacity: 0;
-  transform: translateX(-50%) translateY(-8px);
-}
-
 .payment-alerts {
   position: fixed;
   left: 50%;
-  bottom: 72px;
+  bottom: 24px;
   transform: translateX(-50%);
   z-index: 35;
   display: flex;
@@ -701,7 +662,6 @@ input, textarea {
   .metric { font-size: 18px; }
   .avatar { width: 36px; height: 36px; font-size: 13px; }
   .plan-value { font-size: 16px; }
-  .tv-hint { display: none; }
   .payment-alerts { bottom: 56px; width: min(760px, 96vw); }
   .payment-alert { padding: 16px 18px 14px; border-radius: 18px; }
   .payment-alert-badge { width: 54px; height: 54px; font-size: 24px; border-radius: 14px; }
@@ -761,10 +721,7 @@ input, textarea {
   </main>
 
   <div class="payment-alerts" id="paymentAlerts" aria-live="polite"></div>
-  <p class="sound-hint" id="soundHint">Нажмите OK на пульте для звука</p>
   <audio id="paymentSound" preload="auto" playsinline></audio>
-
-  <p class="tv-hint" id="tvHint">Раз в неделю правьте Google Таблицу с телефона — экран обновится сам</p>
 
   <aside class="editor" id="editor" hidden>
     <div class="editor-card">
@@ -885,8 +842,6 @@ const els = {
   inputNotifySheetName: document.getElementById("inputNotifySheetName"),
   paymentAlerts: document.getElementById("paymentAlerts"),
   paymentSound: document.getElementById("paymentSound"),
-  soundHint: document.getElementById("soundHint"),
-  tvHint: document.getElementById("tvHint"),
 };
 
 function loadData() {
@@ -1212,14 +1167,6 @@ function initPaymentAudio() {
   return els.paymentSound;
 }
 
-function hideSoundHint() {
-  if (els.soundHint) els.soundHint.classList.add("hide");
-}
-
-function showSoundHint() {
-  if (els.soundHint && !audioUnlocked) els.soundHint.classList.remove("hide");
-}
-
 async function unlockAudio(options = {}) {
   const { preview = false, silent = false } = options;
   if (silent && audioUnlocked) return true;
@@ -1235,7 +1182,6 @@ async function unlockAudio(options = {}) {
   try {
     await audio.play();
     audioUnlocked = true;
-    hideSoundHint();
     if (silent || !preview) {
       window.setTimeout(() => {
         audio.pause();
@@ -1246,7 +1192,6 @@ async function unlockAudio(options = {}) {
     return true;
   } catch (error) {
     console.warn("audio unlock", error);
-    showSoundHint();
     return false;
   }
 }
@@ -1273,12 +1218,10 @@ async function playPaymentSound() {
   try {
     await audio.play();
     audioUnlocked = true;
-    hideSoundHint();
     await waitForAudioEnd(audio);
     return true;
   } catch (error) {
     console.warn("audio play", error);
-    showSoundHint();
     return false;
   }
 }
@@ -1604,7 +1547,16 @@ fetchPaymentNotifications();
 setInterval(fetchFromGoogleSheet, REFRESH_MS);
 setInterval(fetchPaymentNotifications, NOTIFY_REFRESH_MS);
 
-setTimeout(() => els.tvHint.classList.add("hide"), 9000);
+function exitFullscreenIfActive() {
+  const doc = document;
+  const el = doc.fullscreenElement || doc.webkitFullscreenElement || doc.msFullscreenElement;
+  if (!el) return;
+  (doc.exitFullscreen || doc.webkitExitFullscreen || doc.msExitFullscreen)?.call(doc);
+}
+
+exitFullscreenIfActive();
+document.addEventListener("DOMContentLoaded", exitFullscreenIfActive);
+window.addEventListener("pageshow", exitFullscreenIfActive);
 
 function bindAudioUnlock() {
   if (audioUnlocked) return;
@@ -1616,7 +1568,6 @@ function bindAudioUnlock() {
 });
 
 initPaymentAudio();
-showSoundHint();
 
 </script>
 </body>
