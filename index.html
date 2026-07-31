@@ -201,6 +201,35 @@ body.is-fullscreen .tv-fullscreen-btn {
   flex-shrink: 0;
 }
 
+.top-summary {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-width: 0;
+  padding: 0 12px;
+}
+
+.top-summary-label {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.top-summary-value {
+  margin-top: 2px;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #7ee787;
+  line-height: 1.05;
+  white-space: nowrap;
+}
+
 .pill {
   display: inline-flex;
   align-items: center;
@@ -732,6 +761,8 @@ input, textarea {
   }
 
   .topbar h1 { font-size: 24px; }
+  .top-summary-value { font-size: 22px; }
+  .top-summary-label { font-size: 11px; }
   .brand-logo { width: 44px; height: 44px; }
   .panel-head { padding: 10px 14px 8px; }
   .panel-head h2 { font-size: 18px; }
@@ -771,6 +802,10 @@ input, textarea {
         <p class="brand-label" id="companyName">БВБ Альянс Центр</p>
         <h1 id="boardTitle">Эффективность менеджеров</h1>
       </div>
+    </div>
+    <div class="top-summary">
+      <span class="top-summary-label">Сумма прибыли филиала</span>
+      <span class="top-summary-value" id="branchProfitValue">0 ₽</span>
     </div>
     <div class="top-meta">
       <span class="pill" id="clockLabel">--:--</span>
@@ -915,6 +950,7 @@ const els = {
   companyName: document.getElementById("companyName"),
   boardTitle: document.getElementById("boardTitle"),
   branchLabel: document.getElementById("branchLabel"),
+  branchProfitValue: document.getElementById("branchProfitValue"),
   periodLabel: document.getElementById("periodLabel"),
   clockLabel: document.getElementById("clockLabel"),
   ratingBody: document.getElementById("ratingBody"),
@@ -994,6 +1030,10 @@ function normalizePerson(person) {
   return { name, deals, profit, planAmount, planPercent };
 }
 
+function totalBranchProfit() {
+  return data.people.reduce((sum, person) => sum + normalizePerson(person).profit, 0);
+}
+
 function rankedPeople() {
   return [...data.people]
     .map(normalizePerson)
@@ -1032,6 +1072,9 @@ function renderBoard() {
   els.boardTitle.textContent = data.title || "Рейтинг";
   els.branchLabel.textContent = data.branch || "";
   els.periodLabel.textContent = data.period || "";
+  if (els.branchProfitValue) {
+    els.branchProfitValue.textContent = `${money(totalBranchProfit())} ₽`;
+  }
 
   const people = rankedPeople();
   els.ratingBody.innerHTML = people.map((person, index) => rowHtml(person, index + 1)).join("");
