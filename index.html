@@ -365,6 +365,29 @@ body.show-admin .admin-controls { display: inline-flex; }
 
 .tv-hint.hide { opacity: 0; }
 
+.sound-hint {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 36;
+  margin: 0;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: rgba(255, 106, 61, 0.92);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: var(--shadow);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+  pointer-events: none;
+}
+
+.sound-hint.hide {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-8px);
+}
+
 .payment-alerts {
   position: fixed;
   left: 50%;
@@ -720,6 +743,8 @@ input, textarea {
   </main>
 
   <div class="payment-alerts" id="paymentAlerts" aria-live="polite"></div>
+  <p class="sound-hint" id="soundHint">Для звука нажмите OK на пульте или «На весь экран»</p>
+  <audio id="paymentSound" preload="auto" playsinline></audio>
 
   <p class="tv-hint" id="tvHint">Раз в неделю правьте Google Таблицу с телефона — экран обновится сам</p>
 
@@ -818,6 +843,7 @@ let notifyQueue = [];
 let notifyShowing = false;
 let audioContext = null;
 let audioUnlocked = false;
+let paymentSoundUri = "";
 const SCROLL_SPEED = 0.7;
 
 const els = {
@@ -838,6 +864,8 @@ const els = {
   inputSheetName: document.getElementById("inputSheetName"),
   inputNotifySheetName: document.getElementById("inputNotifySheetName"),
   paymentAlerts: document.getElementById("paymentAlerts"),
+  paymentSound: document.getElementById("paymentSound"),
+  soundHint: document.getElementById("soundHint"),
   tvHint: document.getElementById("tvHint"),
 };
 
@@ -1084,7 +1112,112 @@ function buildNotificationHtml(note) {
   return rows.join("") || `<p class="payment-alert-custom">Оплата получена</p>`;
 }
 
-function ensureAudio() {
+function writeWavString(view, offset, text) {
+  for (let i = 0; i < text.length; i++) view.setUint8(offset + i, text.charCodeAt(i));
+}
+
+function makePaymentSoundUri() {
+  const sampleRate = 22050;
+  const duration = 0.65;
+  const numSamples = Math.floor(sampleRate * duration);
+  const buffer = new ArrayBuffer(44 + numSamples * 2);
+  const view = new DataView(buffer);
+
+  writeWavString(view, 0, "RIFF");
+  view.setUint32(4, 36 + numSamples * 2, true);
+  writeWavString(view, 8, "WAVE");
+  writeWavString(view, 12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeWavString(view, 36, "data");
+  view.setUint32(40, numSamples * 2, true);
+
+  const tones = [
+    { freq: 784, start: 0, len: 0.12, vol: 0.55 },
+    { freq: 988, start: 0.1, len: 0.14, vol: 0.5 },
+    { freq: 1175, start: 0.22, len: 0.35, vol: 0.48 },
+  ];
+
+  for (let i = 0; i < numSamples; i++) {
+    const t = i / sampleRate;
+    let sample = 0;
+    tones.forEach(({ freq, start, len, vol }) => {
+      if (t >= start && t < start + len) {
+        const local = t - start;
+        const attack = Math.min(1, local / 0.015);
+        const release = Math.max(0, 1 - Math.max(0, local - len + 0.08) / 0.08);
+        sample += Math.sin((Math.PI * 2 * freq * t)) * vol * attack * release;
+      }
+    });
+    view.setInt16(44 + i * 2, Math.max(-1, Math.min(1, sample)) * 0x7fff, true);
+  }
+
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return `data:audio/wav;base64,${btoa(binary)}`;
+}
+
+function initPaymentAudio() {
+  if (!paymentSoundUri) paymentSoundUri = makePaymentSoundUri();
+  if (!els.paymentSound) return null;
+  els.paymentSound.src = paymentSoundUri;
+  els.paymentSound.preload = "auto";
+  els.paymentSound.volume = 1;
+  return els.paymentSound;
+}
+
+function hideSoundHint() {
+  if (els.soundHint) els.soundHint.classList.add("hide");
+}
+
+function showSoundHint() {
+  if (els.soundHint && !audioUnlocked) els.soundHint.classList.remove("hide");
+}
+
+async function unlockAudio(options = {}) {
+  const { preview = false, silent = false } = options;
+  if (silent && audioUnlocked) return true;
+
+  initPaymentAudio();
+  const audio = els.paymentSound;
+  if (!audio) return false;
+
+  try {
+    if (audioContext && audioContext.state === "suspended") await audioContext.resume();
+  } catch {
+    /* ignore */
+  }
+
+  audio.muted = false;
+  audio.volume = preview ? 0.45 : silent ? 0.01 : 1;
+  audio.currentTime = 0;
+
+  try {
+    await audio.play();
+    audioUnlocked = true;
+    hideSoundHint();
+    if (silent || !preview) {
+      window.setTimeout(() => {
+        audio.pause();
+        audio.currentTime = 0;
+        audio.volume = 1;
+      }, silent ? 30 : 80);
+    }
+    return true;
+  } catch (error) {
+    console.warn("audio unlock", error);
+    showSoundHint();
+    return false;
+  }
+}
+
+function playWebAudioFallback() {
   try {
     if (!audioContext) {
       const Ctx = window.AudioContext || window.webkitAudioContext;
@@ -1092,37 +1225,59 @@ function ensureAudio() {
       audioContext = new Ctx();
     }
     if (audioContext.state === "suspended") audioContext.resume();
-    audioUnlocked = true;
+
+    const ctx = audioContext;
+    const now = ctx.currentTime;
+    const tones = [
+      { freq: 784, start: 0, dur: 0.12, gain: 0.2 },
+      { freq: 988, start: 0.1, dur: 0.14, gain: 0.18 },
+      { freq: 1175, start: 0.22, dur: 0.35, gain: 0.16 },
+    ];
+
+    tones.forEach(({ freq, start, dur, gain }) => {
+      const osc = ctx.createOscillator();
+      const amp = ctx.createGain();
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(freq, now + start);
+      amp.gain.setValueAtTime(0.0001, now + start);
+      amp.gain.exponentialRampToValueAtTime(gain, now + start + 0.02);
+      amp.gain.exponentialRampToValueAtTime(0.0001, now + start + dur);
+      osc.connect(amp);
+      amp.connect(ctx.destination);
+      osc.start(now + start);
+      osc.stop(now + start + dur + 0.04);
+    });
     return true;
   } catch {
     return false;
   }
 }
 
-function playPaymentSound() {
-  if (!ensureAudio() || !audioUnlocked) return;
+async function playPaymentSound() {
+  initPaymentAudio();
+  const audio = els.paymentSound;
 
-  const ctx = audioContext;
-  const now = ctx.currentTime;
-  const tones = [
-    { freq: 659.25, start: 0, dur: 0.11, gain: 0.11 },
-    { freq: 880, start: 0.09, dur: 0.13, gain: 0.1 },
-    { freq: 1174.66, start: 0.18, dur: 0.42, gain: 0.09 },
-  ];
+  if (audio) {
+    audio.muted = false;
+    audio.volume = 1;
+    audio.currentTime = 0;
+    try {
+      await audio.play();
+      audioUnlocked = true;
+      hideSoundHint();
+      return;
+    } catch (error) {
+      console.warn("audio play", error);
+    }
+  }
 
-  tones.forEach(({ freq, start, dur, gain }) => {
-    const osc = ctx.createOscillator();
-    const amp = ctx.createGain();
-    osc.type = "triangle";
-    osc.frequency.setValueAtTime(freq, now + start);
-    amp.gain.setValueAtTime(0.0001, now + start);
-    amp.gain.exponentialRampToValueAtTime(gain, now + start + 0.025);
-    amp.gain.exponentialRampToValueAtTime(0.0001, now + start + dur);
-    osc.connect(amp);
-    amp.connect(ctx.destination);
-    osc.start(now + start);
-    osc.stop(now + start + dur + 0.04);
-  });
+  if (playWebAudioFallback()) {
+    audioUnlocked = true;
+    hideSoundHint();
+    return;
+  }
+
+  showSoundHint();
 }
 
 function showPaymentAlert(note) {
@@ -1362,7 +1517,10 @@ function revealAdmin() {
 document.getElementById("editBtn").addEventListener("click", openEditor);
 document.getElementById("closeEditor").addEventListener("click", closeEditor);
 document.getElementById("fullscreenBtn").addEventListener("click", toggleFullscreen);
-document.getElementById("bigFullscreenBtn")?.addEventListener("click", toggleFullscreen);
+document.getElementById("bigFullscreenBtn")?.addEventListener("click", () => {
+  unlockAudio({ preview: true });
+  toggleFullscreen();
+});
 
 document.getElementById("addPerson").addEventListener("click", () => {
   readEditorIntoData();
@@ -1469,10 +1627,22 @@ setInterval(fetchPaymentNotifications, NOTIFY_REFRESH_MS);
 
 setTimeout(() => els.tvHint.classList.add("hide"), 9000);
 
+function bindAudioUnlock() {
+  if (audioUnlocked) return;
+  unlockAudio({ silent: true });
+}
+
+["pointerdown", "click", "keydown", "touchstart"].forEach((eventName) => {
+  document.addEventListener(eventName, bindAudioUnlock, { passive: true });
+});
+
+initPaymentAudio();
+showSoundHint();
+
 document.addEventListener(
   "pointerdown",
   function onceFs() {
-    ensureAudio();
+    unlockAudio({ silent: true });
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen?.().catch(() => {});
     }
