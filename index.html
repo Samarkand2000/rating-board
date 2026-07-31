@@ -547,7 +547,7 @@ body.show-admin .admin-controls { display: inline-flex; }
   border-radius: inherit;
   background: linear-gradient(90deg, #1f9d6a, #ffd166);
   transform-origin: left center;
-  animation: paymentProgress var(--notify-duration, 10s) linear forwards;
+  animation: paymentProgress var(--notify-duration, 6s) linear forwards;
 }
 
 @keyframes paymentGlow {
@@ -745,6 +745,7 @@ input, textarea {
   <div class="payment-alerts" id="paymentAlerts" aria-live="polite"></div>
   <p class="sound-hint" id="soundHint">Для голоса нажмите OK на пульте или «На весь экран»</p>
   <audio id="paymentSound" preload="auto" playsinline></audio>
+  <audio id="speechSound" preload="auto" playsinline></audio>
 
   <p class="tv-hint" id="tvHint">Раз в неделю правьте Google Таблицу с телефона — экран обновится сам</p>
 
@@ -806,8 +807,9 @@ const SEEN_NOTIFY_KEY = "rating-board-seen-notify-v1";
 const NOTIFY_INIT_KEY = "rating-board-notify-init-v1";
 const REFRESH_MS = 60 * 1000;
 const NOTIFY_REFRESH_MS = 30 * 1000;
-const NOTIFY_SHOW_MS = 10000;
-const CHIME_MS = 1900;
+const NOTIFY_SHOW_MS = 6000;
+const CHIME_MS = 1600;
+const TTS_URL = "https://translate.googleapis.com/translate_tts?ie=UTF-8&client=tw-ob&tl=ru&q=";
 
 const defaultData = {
   company: "БВБ Альянс Центр",
@@ -866,6 +868,7 @@ const els = {
   inputNotifySheetName: document.getElementById("inputNotifySheetName"),
   paymentAlerts: document.getElementById("paymentAlerts"),
   paymentSound: document.getElementById("paymentSound"),
+  speechSound: document.getElementById("speechSound"),
   soundHint: document.getElementById("soundHint"),
   tvHint: document.getElementById("tvHint"),
 };
@@ -1144,116 +1147,80 @@ function amountToSpeech(value) {
   return `${parts.join(" ")} рублей`;
 }
 
-function buildNotificationSpeech(note) {
+function buildSpeechPhrase(note) {
   const manager = String(note.manager || "").trim();
-  return {
-    intro: "Оплата пришла",
-    name: manager,
-  };
+  return manager ? `Оплата пришла. ${manager}.` : "Оплата пришла.";
 }
 
 function delay(ms) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
-function preloadVoices() {
-  window.speechSynthesis?.getVoices?.();
-}
+async function playSpeechAudio(text) {
+  const audio = els.speechSound;
+  if (!audio || !text) return false;
 
-function waitForVoices() {
-  return new Promise((resolve) => {
-    const voices = window.speechSynthesis?.getVoices?.() || [];
-    if (voices.length) {
-      resolve(voices);
-      return;
-    }
+  audio.pause();
+  audio.src = `${TTS_URL}${encodeURIComponent(text)}`;
+  audio.load();
+  audio.muted = false;
+  audio.volume = 1;
 
-    let done = false;
-    const finish = () => {
-      if (done) return;
-      done = true;
-      resolve(window.speechSynthesis?.getVoices?.() || []);
-    };
-
-    if (window.speechSynthesis) {
-      window.speechSynthesis.onvoiceschanged = finish;
-    }
-    window.setTimeout(finish, 1500);
-  });
-}
-
-function pickRussianVoice(voices) {
-  return (
-    voices.find((voice) => voice.lang?.toLowerCase().startsWith("ru")) ||
-    voices.find((voice) => /ru|russian|milena|irina|pavel|yuri|dmitri|alena/i.test(`${voice.lang} ${voice.name}`)) ||
-    voices[0] ||
-    null
-  );
-}
-
-function speakText(text) {
-  return new Promise((resolve) => {
-    if (!window.speechSynthesis || !text) {
-      resolve(false);
-      return;
-    }
-
-    waitForVoices().then((voices) => {
-      const utter = new SpeechSynthesisUtterance(text);
-      const voice = pickRussianVoice(voices);
-      utter.lang = "ru-RU";
-      if (voice) utter.voice = voice;
-      utter.rate = 0.9;
-      utter.pitch = 1;
-      utter.volume = 1;
-
-      let finished = false;
+  try {
+    await audio.play();
+    await new Promise((resolve) => {
       const finish = (ok) => {
-        if (finished) return;
-        finished = true;
+        audio.onended = null;
+        audio.onerror = null;
         resolve(ok);
       };
-
-      utter.onend = () => finish(true);
-      utter.onerror = () => finish(false);
-      window.setTimeout(() => finish(false), 7000);
-
-      window.speechSynthesis.speak(utter);
-
-      window.setTimeout(() => {
-        if (window.speechSynthesis.paused) window.speechSynthesis.resume();
-      }, 120);
-      window.setTimeout(() => {
-        if (window.speechSynthesis.paused) window.speechSynthesis.resume();
-      }, 400);
+      audio.onended = () => finish(true);
+      audio.onerror = () => finish(false);
+      window.setTimeout(() => finish(true), 9000);
     });
+    audioUnlocked = true;
+    hideSoundHint();
+    return true;
+  } catch (error) {
+    console.warn("tts play", error);
+    return false;
+  }
+}
+
+async function speakTextBrowser(text) {
+  if (!window.speechSynthesis || !text) return false;
+
+  return new Promise((resolve) => {
+    window.speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = "ru-RU";
+    utter.rate = 0.9;
+    utter.volume = 1;
+
+    let finished = false;
+    const finish = (ok) => {
+      if (finished) return;
+      finished = true;
+      resolve(ok);
+    };
+
+    utter.onend = () => finish(true);
+    utter.onerror = () => finish(false);
+    window.setTimeout(() => finish(false), 7000);
+    window.speechSynthesis.speak(utter);
   });
 }
 
 async function speakPaymentVoice(note) {
-  const { intro, name } = buildNotificationSpeech(note);
-  window.speechSynthesis?.cancel?.();
-  await delay(80);
-
-  const introOk = await speakText(intro);
-  if (!introOk) return false;
-
-  if (name) {
-    await delay(180);
-    return speakText(name);
-  }
-
-  return true;
+  const phrase = buildSpeechPhrase(note);
+  if (await playSpeechAudio(phrase)) return true;
+  return speakTextBrowser(phrase);
 }
 
 async function announcePayment(note) {
   await playPaymentSound();
-  await delay(280);
-  const spoken = await speakPaymentVoice(note);
-  if (spoken) {
-    audioUnlocked = true;
-    hideSoundHint();
-  }
+  await delay(200);
+  await speakPaymentVoice(note);
 }
 
 function writeWavString(view, offset, text) {
@@ -1446,6 +1413,7 @@ async function drainNotifyQueue() {
   }
 
   notifyShowing = true;
+  els.paymentAlerts.innerHTML = "";
 
   const card = document.createElement("div");
   card.className = "payment-alert show";
@@ -1673,13 +1641,8 @@ document.getElementById("closeEditor").addEventListener("click", closeEditor);
 document.getElementById("fullscreenBtn").addEventListener("click", toggleFullscreen);
 document.getElementById("bigFullscreenBtn")?.addEventListener("click", async () => {
   await unlockAudio({ silent: true });
-  const spoken = await speakText("Голосовые уведомления включены");
-  if (spoken) {
-    audioUnlocked = true;
-    hideSoundHint();
-  } else {
-    await unlockAudio({ preview: true });
-  }
+  const spoken = await playSpeechAudio("Голос включён");
+  if (!spoken) await unlockAudio({ preview: true });
   toggleFullscreen();
 });
 
@@ -1798,10 +1761,6 @@ function bindAudioUnlock() {
 });
 
 initPaymentAudio();
-preloadVoices();
-if (window.speechSynthesis) {
-  window.speechSynthesis.onvoiceschanged = preloadVoices;
-}
 showSoundHint();
 
 document.addEventListener(
