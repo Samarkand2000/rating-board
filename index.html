@@ -1143,14 +1143,14 @@ function amountToSpeech(value) {
 }
 
 function buildNotificationSpeech(note) {
-  if (note.text) return note.text;
+  if (note.text) {
+    const manager = String(note.manager || "").trim();
+    if (manager) return `Оплата получена. ${manager}.`;
+    return note.text;
+  }
 
-  const parts = ["Оплата получена."];
-  if (note.manager) parts.push(`Сотрудник ${note.manager}.`);
-  if (note.client) parts.push(`Клиент ${note.client}.`);
-  if (note.amount) parts.push(`Сумма ${amountToSpeech(note.amount)}.`);
-
-  return parts.join(" ");
+  if (note.manager) return `Оплата получена. ${note.manager}.`;
+  return "Оплата получена.";
 }
 
 function waitForVoices() {
