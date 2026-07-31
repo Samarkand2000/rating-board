@@ -69,84 +69,6 @@ body.editing {
   z-index: -1;
 }
 
-.tv-fullscreen-btn {
-  position: fixed;
-  right: 16px;
-  bottom: 16px;
-  z-index: 30;
-  border: 0;
-  border-radius: 12px;
-  padding: 12px 16px;
-  background: var(--accent);
-  color: #fff;
-  font: inherit;
-  font-size: 18px;
-  font-weight: 800;
-  cursor: pointer;
-  box-shadow: var(--shadow);
-}
-
-.tv-fullscreen-btn:focus,
-.tv-fullscreen-btn:focus-visible {
-  outline: 4px solid #ffd166;
-  outline-offset: 4px;
-}
-
-.tv-start {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  display: grid;
-  place-items: center;
-  background: rgba(4, 8, 16, 0.82);
-  padding: 24px;
-}
-
-.tv-start:focus {
-  outline: none;
-}
-
-.tv-start.hide {
-  display: none;
-}
-
-.tv-start-card {
-  width: min(720px, 92vw);
-  padding: 28px 32px;
-  border-radius: 22px;
-  background: linear-gradient(145deg, #16263f, #101a2c);
-  border: 1px solid rgba(255, 209, 102, 0.35);
-  box-shadow: var(--shadow);
-  text-align: center;
-}
-
-.tv-start-title {
-  margin: 0 0 12px;
-  font-size: 34px;
-  font-weight: 800;
-}
-
-.tv-start-text {
-  margin: 0;
-  font-size: 28px;
-  font-weight: 700;
-}
-
-.tv-start-text strong {
-  color: #ffd166;
-}
-
-.tv-start-sub {
-  margin: 10px 0 0;
-  color: var(--muted);
-  font-size: 18px;
-  font-weight: 600;
-}
-
-body.is-fullscreen .tv-fullscreen-btn {
-  display: none;
-}
-
 .topbar {
   display: flex;
   align-items: center;
@@ -757,7 +679,6 @@ input, textarea {
   .board { height: auto; min-height: 70vh; }
   .fields,
   .person-row { grid-template-columns: 1fr; }
-  .tv-fullscreen-btn { font-size: 18px; }
 }
 
 @media (max-height: 700px) {
@@ -793,14 +714,6 @@ input, textarea {
 </head>
 <body class="tv-mode">
   <div class="ambient" aria-hidden="true"></div>
-  <div class="tv-start" id="tvStart" tabindex="0">
-    <div class="tv-start-card">
-      <p class="tv-start-title">Рейтинг менеджеров</p>
-      <p class="tv-start-text">Нажмите <strong>OK</strong> на пульте</p>
-      <p class="tv-start-sub">Включится полный экран и звук</p>
-    </div>
-  </div>
-  <button type="button" class="tv-fullscreen-btn" id="bigFullscreenBtn" tabindex="0">На весь экран</button>
 
   <header class="topbar">
     <div class="brand" id="brandHotspot" title="Удержите 2 сек для правки">
@@ -819,7 +732,6 @@ input, textarea {
       <span class="pill" id="periodLabel">Июль 2026</span>
       <div class="admin-controls" id="adminControls">
         <button type="button" class="btn ghost" id="editBtn">✎ Правка</button>
-        <button type="button" class="btn ghost" id="fullscreenBtn">⛶ Экран</button>
       </div>
     </div>
   </header>
@@ -849,7 +761,7 @@ input, textarea {
   </main>
 
   <div class="payment-alerts" id="paymentAlerts" aria-live="polite"></div>
-  <p class="sound-hint" id="soundHint">Нажмите OK на пульте — полный экран и звук</p>
+  <p class="sound-hint" id="soundHint">Нажмите OK на пульте для звука</p>
   <audio id="paymentSound" preload="auto" playsinline></audio>
 
   <p class="tv-hint" id="tvHint">Раз в неделю правьте Google Таблицу с телефона — экран обновится сам</p>
@@ -951,7 +863,6 @@ let brandHoldTimer = 0;
 let notifyQueue = [];
 let notifyShowing = false;
 let audioUnlocked = false;
-let tvModeActivated = false;
 const SCROLL_PX_PER_SEC = 24;
 
 const els = {
@@ -974,7 +885,6 @@ const els = {
   inputNotifySheetName: document.getElementById("inputNotifySheetName"),
   paymentAlerts: document.getElementById("paymentAlerts"),
   paymentSound: document.getElementById("paymentSound"),
-  tvStart: document.getElementById("tvStart"),
   soundHint: document.getElementById("soundHint"),
   tvHint: document.getElementById("tvHint"),
 };
@@ -1574,53 +1484,6 @@ function updateClock() {
   });
 }
 
-async function activateTvMode(playTestSound = false) {
-  if (tvModeActivated && !playTestSound) return;
-  tvModeActivated = true;
-
-  if (els.tvStart) els.tvStart.classList.add("hide");
-  hideSoundHint();
-
-  await unlockAudio({ silent: true });
-  toggleFullscreen();
-
-  if (playTestSound) {
-    try {
-      await playPaymentSound();
-    } catch {
-      /* ignore */
-    }
-  }
-}
-
-function isRemoteActivateKey(event) {
-  const key = event.key;
-  return (
-    key === "Enter" ||
-    key === " " ||
-    key === "Spacebar" ||
-    key === "Accept" ||
-    key === "Select" ||
-    event.keyCode === 13 ||
-    event.keyCode === 23
-  );
-}
-function toggleFullscreen() {
-  const root = document.documentElement;
-  if (!document.fullscreenElement) {
-    (root.requestFullscreen || root.webkitRequestFullscreen || root.msRequestFullscreen)?.call(root);
-  } else {
-    (document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen)?.call(document);
-  }
-}
-
-function syncFullscreenClass() {
-  document.body.classList.toggle("is-fullscreen", Boolean(document.fullscreenElement));
-}
-
-document.addEventListener("fullscreenchange", syncFullscreenClass);
-document.addEventListener("webkitfullscreenchange", syncFullscreenClass);
-
 function showCursorBriefly() {
   document.body.classList.add("show-cursor");
   scheduleHideCursor();
@@ -1641,10 +1504,6 @@ function revealAdmin() {
 
 document.getElementById("editBtn").addEventListener("click", openEditor);
 document.getElementById("closeEditor").addEventListener("click", closeEditor);
-document.getElementById("fullscreenBtn").addEventListener("click", toggleFullscreen);
-document.getElementById("bigFullscreenBtn")?.addEventListener("click", () => {
-  activateTvMode(true);
-});
 
 document.getElementById("addPerson").addEventListener("click", () => {
   readEditorIntoData();
@@ -1711,10 +1570,6 @@ document.addEventListener("keydown", (event) => {
     return;
   }
 
-  if (!typing && (event.key === "f" || event.key === "F" || event.key === "а" || event.key === "А")) {
-    toggleFullscreen();
-  }
-
   if (!typing && (event.key === "e" || event.key === "E" || event.key === "у" || event.key === "У")) {
     if (els.editor.hidden) openEditor();
     else closeEditor();
@@ -1756,30 +1611,12 @@ function bindAudioUnlock() {
   unlockAudio({ silent: true });
 }
 
-document.addEventListener("keydown", (event) => {
-  if (!els.editor.hidden) return;
-  if (!isRemoteActivateKey(event)) return;
-  event.preventDefault();
-  activateTvMode(true);
-});
-
-["pointerdown", "click", "touchstart"].forEach((eventName) => {
-  document.addEventListener(eventName, () => {
-    if (!els.editor.hidden) return;
-    activateTvMode(false);
-  }, { passive: true });
+["pointerdown", "click", "keydown", "touchstart"].forEach((eventName) => {
+  document.addEventListener(eventName, bindAudioUnlock, { passive: true });
 });
 
 initPaymentAudio();
-if (els.bigFullscreenBtn) {
-  window.setTimeout(() => {
-    if (els.tvStart && !els.tvStart.classList.contains("hide")) {
-      els.tvStart.focus();
-    } else {
-      els.bigFullscreenBtn.focus();
-    }
-  }, 500);
-}
+showSoundHint();
 
 </script>
 </body>
