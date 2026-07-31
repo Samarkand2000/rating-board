@@ -306,9 +306,16 @@ body.show-admin .admin-controls { display: inline-flex; }
 
 .table-wrap {
   flex: 1;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   position: relative;
   min-height: 0;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.table-wrap::-webkit-scrollbar {
+  display: none;
 }
 
 .rating-table {
@@ -937,14 +944,15 @@ function cloneData(value) {
 
 let data = loadData();
 let scrollRaf = 0;
-let scrollDirection = 1;
+let scrollLoopHeight = 0;
+let scrollLastTs = 0;
 let cursorTimer = 0;
 let brandHoldTimer = 0;
 let notifyQueue = [];
 let notifyShowing = false;
 let audioUnlocked = false;
 let tvModeActivated = false;
-const SCROLL_SPEED = 0.7;
+const SCROLL_PX_PER_SEC = 24;
 
 const els = {
   companyName: document.getElementById("companyName"),
@@ -1067,7 +1075,23 @@ function rowHtml(person, place) {
   `;
 }
 
-function renderBoard() {
+function applyPlanBars() {
+  els.ratingBody.querySelectorAll(".bar > span").forEach((bar) => {
+    bar.style.width = `${bar.dataset.width}%`;
+  });
+}
+
+function updateScrollLoopHeight() {
+  const rows = els.ratingBody.querySelectorAll("tr");
+  const half = rows.length / 2;
+  if (half < 1) {
+    scrollLoopHeight = 0;
+    return;
+  }
+  scrollLoopHeight = rows[half].offsetTop - rows[0].offsetTop;
+}
+
+function renderBoard({ preserveScroll = false } = {}) {
   els.companyName.textContent = data.company || "Компания";
   els.boardTitle.textContent = data.title || "Рейтинг";
   els.branchLabel.textContent = data.branch || "";
@@ -1077,12 +1101,26 @@ function renderBoard() {
   }
 
   const people = rankedPeople();
-  els.ratingBody.innerHTML = people.map((person, index) => rowHtml(person, index + 1)).join("");
+  const rowsHtml = people.map((person, index) => rowHtml(person, index + 1)).join("");
+  const prevScrollTop = preserveScroll ? els.scrollArea.scrollTop : 0;
+  const prevLoop = scrollLoopHeight;
+
+  els.ratingBody.innerHTML = rowsHtml;
 
   requestAnimationFrame(() => {
-    els.ratingBody.querySelectorAll(".bar > span").forEach((bar) => {
-      bar.style.width = `${bar.dataset.width}%`;
-    });
+    applyPlanBars();
+    const area = els.scrollArea;
+    if (area.scrollHeight - area.clientHeight > 8) {
+      els.ratingBody.innerHTML = rowsHtml + rowsHtml;
+      applyPlanBars();
+    }
+    updateScrollLoopHeight();
+    if (preserveScroll && scrollLoopHeight > 0 && prevLoop > 0) {
+      area.scrollTop = prevScrollTop % prevLoop;
+      if (area.scrollTop >= scrollLoopHeight) area.scrollTop %= scrollLoopHeight;
+    } else {
+      area.scrollTop = 0;
+    }
     restartAutoScroll();
   });
 }
@@ -1136,7 +1174,7 @@ async function fetchFromGoogleSheet() {
 
     data.people = people;
     saveData();
-    renderBoard();
+    renderBoard({ preserveScroll: true });
     const time = new Date().toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
     setSyncStatus(`таблица ${time}`);
     return true;
@@ -1500,29 +1538,28 @@ function stopAutoScroll() {
     cancelAnimationFrame(scrollRaf);
     scrollRaf = 0;
   }
+  scrollLastTs = 0;
 }
 
 function restartAutoScroll() {
   stopAutoScroll();
   const area = els.scrollArea;
-  area.scrollTop = 0;
-  scrollDirection = 1;
 
-  const tick = () => {
+  const tick = (timestamp) => {
     scrollRaf = requestAnimationFrame(tick);
     if (!els.editor.hidden) return;
 
     const max = area.scrollHeight - area.clientHeight;
-    if (max <= 8) return;
+    if (max <= 8 || scrollLoopHeight <= 0) return;
 
-    area.scrollTop += scrollDirection * SCROLL_SPEED;
+    if (!scrollLastTs) scrollLastTs = timestamp;
+    const deltaSec = Math.min((timestamp - scrollLastTs) / 1000, 0.05);
+    scrollLastTs = timestamp;
 
-    if (area.scrollTop >= max - 0.5) {
-      area.scrollTop = max;
-      scrollDirection = -1;
-    } else if (area.scrollTop <= 0) {
-      area.scrollTop = 0;
-      scrollDirection = 1;
+    area.scrollTop += SCROLL_PX_PER_SEC * deltaSec;
+
+    while (area.scrollTop >= scrollLoopHeight) {
+      area.scrollTop -= scrollLoopHeight;
     }
   };
 
