@@ -1,4 +1,4 @@
-<!-- build v24 2026-08-07 13:09 -->
+<!-- build v25 2026-08-07 13:13 -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -7,7 +7,7 @@
   <meta name="color-scheme" content="dark" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <title>Рейтинг сотрудников — TV v24</title>
+  <title>Рейтинг сотрудников — TV v25</title>
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
@@ -336,6 +336,14 @@ body.show-admin .admin-controls { display: inline-flex; }
 }
 
 .metric.zero { color: var(--warn); }
+
+.loading-row {
+  padding: 28px 14px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 20px;
+  font-weight: 700;
+}
 
 .plan {
   display: flex;
@@ -783,7 +791,8 @@ input, textarea {
   </aside>
 
   <script>
-const STORAGE_KEY = "rating-board-v6";
+const STORAGE_KEY = "rating-board-v7";
+const APP_VERSION = "v25";
 const SEEN_NOTIFY_KEY = "rating-board-seen-notify-v1";
 const NOTIFY_INIT_KEY = "rating-board-notify-init-v1";
 const REFRESH_MS = 30 * 1000;
@@ -800,18 +809,7 @@ const defaultData = {
   sheetId: "1ohkIaOIu1slCsIscsd9ithRrOwdzhxuS1-zgRFIfqBI",
   sheetName: "1",
   notifySheetName: "Уведомления",
-  people: [
-    { name: "Трушков Эдуард", deals: 10, profit: 4000000, planAmount: 4000000 },
-    { name: "Глазунов Александр", deals: 2, profit: 1300000, planAmount: 1300000 },
-    { name: "Новиков Андрей", deals: 2, profit: 1000000, planAmount: 1000000 },
-    { name: "Куликов Александр", deals: 2, profit: 700000, planAmount: 700000 },
-    { name: "Павлова Наталья", deals: 4, profit: 460000, planAmount: 460000 },
-    { name: "Вельдиманова Екатерина", deals: 2, profit: 300000, planAmount: 300000 },
-    { name: "Костяев Олег", deals: 2, profit: 200000, planAmount: 200000 },
-    { name: "Алексеев Олег", deals: 2, profit: 68000, planAmount: 68000 },
-    { name: "Царапкин Алексей", deals: 2, profit: 40000, planAmount: 40000 },
-    { name: "Виноградов Кирилл", deals: 1, profit: 18000, planAmount: 18000 },
-  ],
+  people: [],
 };
 
 function cloneData(value) {
@@ -854,10 +852,20 @@ const els = {
 
 function loadData() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem("rating-board-v1");
+    const raw =
+      localStorage.getItem(STORAGE_KEY) ||
+      localStorage.getItem("rating-board-v6") ||
+      localStorage.getItem("rating-board-v1");
     if (!raw) return cloneData(defaultData);
+
     const parsed = { ...cloneData(defaultData), ...JSON.parse(raw) };
-    if (parsed.sheetName === "1" || parsed.sheetName === "Список") parsed.sheetName = "1";
+    if (parsed.sheetName === "Список") parsed.sheetName = "1";
+
+    if ((parsed.sheetId || "").trim()) {
+      parsed.people = [];
+      return parsed;
+    }
+
     parsed.people = (parsed.people || []).map((person) => {
       const normalized = normalizePerson(person);
       return {
@@ -874,7 +882,21 @@ function loadData() {
 }
 
 function saveData() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  const payload = {
+    company: data.company,
+    title: data.title,
+    branch: data.branch,
+    period: data.period,
+    sheetId: data.sheetId,
+    sheetName: data.sheetName,
+    notifySheetName: data.notifySheetName,
+  };
+
+  if (!(data.sheetId || "").trim()) {
+    payload.people = data.people;
+  }
+
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
 }
 
 function money(value) {
@@ -891,7 +913,14 @@ function initials(name) {
 }
 
 function toNumber(value) {
-  return Number(String(value ?? "").replace(/\s/g, "").replace("%", "").replace(",", ".")) || 0;
+  return (
+    Number(
+      String(value ?? "")
+        .replace(/[\s\u00a0\u202f]/g, "")
+        .replace("%", "")
+        .replace(",", ".")
+    ) || 0
+  );
 }
 
 function normalizePerson(person) {
@@ -969,6 +998,15 @@ function renderBoard({ preserveScroll = false } = {}) {
   els.boardTitle.textContent = data.title || "Рейтинг";
   els.branchLabel.textContent = data.branch || "";
   els.periodLabel.textContent = data.period || "";
+
+  if (!data.people.length && (data.sheetId || "").trim()) {
+    if (els.branchProfitValue) els.branchProfitValue.textContent = "…";
+    els.ratingBody.innerHTML =
+      '<tr><td colspan="5" class="loading-row">Загрузка данных из таблицы…</td></tr>';
+    stopAutoScroll();
+    return;
+  }
+
   if (els.branchProfitValue) {
     els.branchProfitValue.textContent = `${money(totalBranchProfit())} ₽`;
   }
@@ -1000,7 +1038,7 @@ function renderBoard({ preserveScroll = false } = {}) {
 
 function setSyncStatus(text, isError = false) {
   if (!els.syncLabel) return;
-  els.syncLabel.textContent = text;
+  els.syncLabel.textContent = `${text} · ${APP_VERSION}`;
   els.syncLabel.classList.toggle("error", isError);
 }
 
@@ -1373,7 +1411,7 @@ function openEditor() {
   els.inputBranch.value = data.branch;
   els.inputPeriod.value = data.period;
   els.inputSheetId.value = data.sheetId || "";
-  els.inputSheetName.value = data.sheetName || "Список";
+  els.inputSheetName.value = data.sheetName || "1";
   els.inputNotifySheetName.value = data.notifySheetName || "Уведомления";
   renderPeopleEditor();
   els.editor.hidden = false;
@@ -1583,11 +1621,21 @@ setInterval(() => {
 
 updateClock();
 setInterval(updateClock, 15000);
-renderBoard();
-fetchFromGoogleSheet();
-fetchPaymentNotifications();
+
+async function boot() {
+  setSyncStatus("загрузка…");
+  renderBoard();
+  await fetchFromGoogleSheet();
+  fetchPaymentNotifications();
+}
+
+boot();
 setInterval(fetchFromGoogleSheet, REFRESH_MS);
 setInterval(fetchPaymentNotifications, NOTIFY_REFRESH_MS);
+
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) fetchFromGoogleSheet();
+});
 
 function exitFullscreenIfActive() {
   const doc = document;
