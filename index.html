@@ -1,4 +1,4 @@
-<!-- build v25 2026-08-07 13:13 -->
+<!-- build v26 2026-08-07 13:17 -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -7,7 +7,7 @@
   <meta name="color-scheme" content="dark" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <title>Рейтинг сотрудников — TV v25</title>
+  <title>Рейтинг сотрудников — TV v26</title>
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
@@ -792,7 +792,7 @@ input, textarea {
 
   <script>
 const STORAGE_KEY = "rating-board-v7";
-const APP_VERSION = "v25";
+const APP_VERSION = "v26";
 const SEEN_NOTIFY_KEY = "rating-board-seen-notify-v1";
 const NOTIFY_INIT_KEY = "rating-board-notify-init-v1";
 const REFRESH_MS = 30 * 1000;
@@ -1047,26 +1047,27 @@ async function fetchSheetJson(sheetId, sheetNames) {
   let lastError = null;
 
   for (const sheetName of names) {
-    const url =
-      `https://opensheet.elk.sh/${encodeURIComponent(sheetId)}/${encodeURIComponent(sheetName)}` +
-      `?nocache=${Date.now()}`;
+    const baseUrl = `https://opensheet.elk.sh/${encodeURIComponent(sheetId)}/${encodeURIComponent(sheetName)}`;
+    const urls = [`${baseUrl}?raw=true`, baseUrl];
 
-    try {
-      const response = await fetch(url, { cache: "no-store" });
-      if (!response.ok) {
-        lastError = new Error(`HTTP ${response.status} (${sheetName})`);
-        continue;
+    for (const url of urls) {
+      try {
+        const response = await fetch(url, { cache: "no-store" });
+        if (!response.ok) {
+          lastError = new Error(`HTTP ${response.status} (${sheetName})`);
+          continue;
+        }
+
+        const rows = await response.json();
+        if (!Array.isArray(rows) || !rows.length) {
+          lastError = new Error(`Пустой лист ${sheetName}`);
+          continue;
+        }
+
+        return { rows, sheetName };
+      } catch (error) {
+        lastError = error;
       }
-
-      const rows = await response.json();
-      if (!Array.isArray(rows) || !rows.length) {
-        lastError = new Error(`Пустой лист ${sheetName}`);
-        continue;
-      }
-
-      return { rows, sheetName };
-    } catch (error) {
-      lastError = error;
     }
   }
 
@@ -1357,9 +1358,7 @@ async function fetchPaymentNotifications() {
   const notifySheetName = (data.notifySheetName || "Уведомления").trim();
   if (!sheetId || !notifySheetName) return false;
 
-  const url =
-    `https://opensheet.elk.sh/${encodeURIComponent(sheetId)}/${encodeURIComponent(notifySheetName)}` +
-    `?nocache=${Date.now()}`;
+  const url = `https://opensheet.elk.sh/${encodeURIComponent(sheetId)}/${encodeURIComponent(notifySheetName)}?raw=true`;
 
   try {
     const response = await fetch(url, { cache: "no-store" });
