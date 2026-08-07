@@ -6,7 +6,11 @@ on:
     paths:
       - "index.html"
       - "android-tv/**"
+      - ".github/workflows/build-apk.yml"
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -21,6 +25,9 @@ jobs:
 
       - uses: android-actions/setup-android@v3
 
+      - name: Accept Android licenses
+        run: yes | sdkmanager --licenses
+
       - name: Build APK
         working-directory: android-tv
         run: |
@@ -28,10 +35,19 @@ jobs:
           sudo apt-get install -y gradle
           gradle wrapper --gradle-version 8.7
           chmod +x gradlew
-          ./gradlew assembleRelease --stacktrace
+          ./gradlew assembleDebug --stacktrace
 
-      - name: Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: rating-board-tv
-          path: android-tv/app/build/outputs/apk/release/*.apk
+          path: android-tv/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Publish release APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: tv-app-latest
+          name: Рейтинг BVB для TV
+          body: APK для установки на Xiaomi / Android TV. Данные подтягиваются из Google Таблицы автоматически.
+          files: android-tv/app/build/outputs/apk/debug/app-debug.apk
+          make_latest: true
